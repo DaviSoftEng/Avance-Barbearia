@@ -1,0 +1,324 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { getServices } from '../services/api';
+import { useInView } from '../hooks/useInView';
+
+function Reveal({ children, className = '', delay = '' }) {
+  const [ref, visible] = useInView();
+  return (
+    <div ref={ref} className={`reveal ${delay} ${visible ? 'is-visible' : ''} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function SectionDivider() {
+  return <div className="border-t border-[#1A1A1A]" />;
+}
+
+export default function Home() {
+  const [services, setServices] = useState([]);
+  const [cursor, setCursor] = useState(true);
+
+  useEffect(() => {
+    getServices().then((r) => setServices(r.data)).catch(() => {});
+    const t = setInterval(() => setCursor((c) => !c), 600);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <>
+      {/* ── HERO ── */}
+      <section className="relative min-h-screen flex flex-col justify-between px-6 pt-28 pb-16 max-w-6xl mx-auto overflow-hidden">
+        <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-blue-600/10 blur-[120px] animate-breathe" />
+        <div className="pointer-events-none absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-blue-800/5 blur-[80px] animate-breathe" style={{ animationDelay: '2.5s' }} />
+
+        <div className="relative">
+          <p className="section-label mb-8" style={{ animation: 'fadeInUp 0.7s ease 0.1s both' }}>
+            Barbearia Avance · Ryann França
+          </p>
+          <h1
+            className="text-[clamp(3rem,8vw,6.5rem)] font-bold leading-[0.92] tracking-tight text-white"
+            style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both' }}
+          >
+            Estilo,<br />Autoestima &<br />
+            <span className="shimmer-text">Confiança!</span>
+            <span className={`inline-block w-[4px] h-[0.85em] bg-blue-500 ml-2 align-middle rounded-sm transition-opacity ${cursor ? 'opacity-100' : 'opacity-0'}`} />
+          </h1>
+          <p className="text-[#555] text-lg mt-10 max-w-md leading-relaxed" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s both' }}>
+            Agendamento online para quem valoriza o próprio tempo. Escolha o horário, apareça, saia impecável.
+          </p>
+          <div className="flex items-center gap-5 mt-10" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.45s both' }}>
+            <Link to="/agendar" className="btn-primary px-7 py-3.5 text-sm relative overflow-hidden group">
+              <span className="relative z-10">Agendar agora</span>
+              <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            </Link>
+            <a href="#sobre" className="text-[#444] hover:text-white text-sm transition-colors duration-200">
+              Conheça o barbeiro ↓
+            </a>
+          </div>
+        </div>
+
+        <div className="relative flex items-end justify-between mt-20 border-t border-[#1A1A1A] pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
+          <div className="flex gap-12">
+            {[['500+', 'Clientes atendidos'], ['8 anos', 'De experiência'], ['5.0★', 'Avaliação média']].map(([v, l]) => (
+              <div key={l}>
+                <p className="text-white font-bold text-2xl">{v}</p>
+                <p className="text-[#333] text-xs mt-0.5">{l}</p>
+              </div>
+            ))}
+          </div>
+          <img src="/logo.jpeg" alt="Avance" className="h-14 w-14 rounded-full object-cover opacity-40 animate-float" />
+        </div>
+      </section>
+
+      {/* ── SOBRE ── */}
+      <SectionDivider />
+      <section id="sobre">
+        <div className="max-w-6xl mx-auto px-6 py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+
+            {/* Foto */}
+            <Reveal>
+              <div className="relative">
+                {/* Troque o src abaixo pela foto real do Ryann */}
+                <div className="relative aspect-[3/4] max-w-sm mx-auto lg:mx-0 rounded-2xl overflow-hidden bg-[#111111] border border-[#1E1E1E]">
+                  <img
+                    src="/ryann.jpg"
+                    alt="Ryann França"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  {/* Placeholder visual caso sem foto */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 barber-photo-placeholder">
+                    <div className="w-24 h-24 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-4xl mb-4">
+                      💈
+                    </div>
+                    <p className="text-[#333] text-sm">Adicione <code className="text-blue-500">ryann.jpg</code></p>
+                    <p className="text-[#222] text-xs mt-1">na pasta <code className="text-[#333]">client/public/</code></p>
+                  </div>
+
+                  {/* Overlay gradiente na foto */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/60 via-transparent to-transparent pointer-events-none" />
+                </div>
+
+                {/* Badge flutuante */}
+                <div className="absolute -bottom-4 -right-4 lg:right-0 bg-[#111] border border-[#1E1E1E] rounded-2xl px-5 py-3 animate-float" style={{ animationDelay: '1s' }}>
+                  <p className="text-white font-bold text-xl">8+</p>
+                  <p className="text-[#444] text-xs">anos de ofício</p>
+                </div>
+              </div>
+            </Reveal>
+
+            {/* Texto */}
+            <Reveal delay="reveal-delay-2">
+              <p className="section-label mb-5">Quem sou eu</p>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-6">
+                Ryann<br />França
+              </h2>
+              <p className="text-[#555] leading-relaxed mb-4">
+                {/* Substitua pelo texto real do barbeiro */}
+                Barbeiro profissional com mais de 8 anos de experiência, especializado em cortes modernos e técnicas clássicas de barbearia. Cada cliente é tratado com atenção individual, porque estilo é algo pessoal.
+              </p>
+              <p className="text-[#444] leading-relaxed mb-8 text-sm">
+                {/* Texto adicional — substitua */}
+                Formado em barbearia e constantemente atualizado com as tendências do mercado, o Ryann combina técnica e criatividade para entregar o melhor resultado sempre.
+              </p>
+
+              <div className="space-y-3 mb-8">
+                {[
+                  'Especialista em cortes modernos e clássicos',
+                  'Técnicas de navalha e acabamento preciso',
+                  'Atendimento personalizado para cada cliente',
+                  /* Adicione mais especialidades aqui */
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-3">
+                    <span className="text-blue-500 mt-0.5 shrink-0 text-sm">✓</span>
+                    <span className="text-[#666] text-sm">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Link to="/agendar" className="btn-primary inline-block px-6 py-3 text-sm">
+                Agendar com Ryann
+              </Link>
+            </Reveal>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── SERVIÇOS ── */}
+      <SectionDivider />
+      <section id="servicos">
+        <div className="max-w-6xl mx-auto px-6 py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+
+            <Reveal>
+              <p className="section-label mb-5">O que fazemos</p>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
+                Serviços e<br />preços
+              </h2>
+              <p className="text-[#444] mt-5 leading-relaxed text-sm">
+                Cada serviço pensado para valorizar o seu estilo. Sem pressa, sem descuido.
+              </p>
+              <Link to="/agendar" className="btn-primary inline-block mt-8 px-6 py-3 text-sm">
+                Reservar horário
+              </Link>
+            </Reveal>
+
+            <Reveal delay="reveal-delay-1">
+              {services.length > 0 ? (
+                <div>
+                  {services.map((s, i) => (
+                    <div
+                      key={s.id}
+                      className="relative flex items-center justify-between py-5 border-b border-[#1A1A1A] group cursor-default overflow-hidden"
+                      style={{ transitionDelay: `${i * 40}ms` }}
+                    >
+                      <span className="absolute left-0 top-2 bottom-2 w-[2px] bg-blue-600 origin-top scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-full" />
+                      <span className="absolute inset-0 bg-blue-600/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-300 -mx-3 rounded-xl" />
+                      <div className="relative pl-0 group-hover:pl-4 transition-all duration-300">
+                        <p className="text-white font-medium text-sm group-hover:text-blue-300 transition-colors duration-300">{s.name}</p>
+                        <p className="text-[#333] text-xs mt-0.5 group-hover:text-[#555] transition-colors duration-300">{s.duration} min</p>
+                      </div>
+                      <p className="relative text-blue-500 font-bold text-lg group-hover:text-blue-400 transition-colors duration-300">
+                        R${s.price.toFixed(2)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[#222]">Carregando...</p>
+              )}
+            </Reveal>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── LOCALIZAÇÃO ── */}
+      <SectionDivider />
+      <section id="localizacao">
+        <div className="max-w-6xl mx-auto px-6 py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+
+            <Reveal>
+              <p className="section-label mb-5">Onde estamos</p>
+              <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight mb-8">
+                Localização
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[#333] text-xs uppercase tracking-wider mb-2">Endereço</p>
+                  {/* Substitua pelo endereço real */}
+                  <p className="text-white font-medium">Rua Exemplo, 123 — Bairro</p>
+                  <p className="text-[#555] text-sm mt-0.5">Cidade — Estado, CEP 00000-000</p>
+                </div>
+
+                <div className="h-px bg-[#1A1A1A]" />
+
+                <div>
+                  <p className="text-[#333] text-xs uppercase tracking-wider mb-2">Contato</p>
+                  {/* Substitua pelo contato real */}
+                  <a href="https://wa.me/5511999999999" target="_blank" rel="noreferrer"
+                    className="text-white font-medium hover:text-blue-400 transition-colors block">
+                    (11) 99999-9999 · WhatsApp
+                  </a>
+                  <a href="https://instagram.com/barbearia.avance" target="_blank" rel="noreferrer"
+                    className="text-[#555] text-sm hover:text-blue-400 transition-colors mt-0.5 block">
+                    @barbearia.avance
+                  </a>
+                </div>
+
+                <div className="h-px bg-[#1A1A1A]" />
+
+                <div>
+                  <p className="text-[#333] text-xs uppercase tracking-wider mb-3">Horários</p>
+                  {[
+                    { days: 'Segunda a Sexta', hours: '09:00 – 19:00', open: true },
+                    { days: 'Sábado',          hours: '09:00 – 17:00', open: true },
+                    { days: 'Domingo',         hours: 'Fechado',        open: false },
+                  ].map(({ days, hours, open }) => (
+                    <div key={days} className="flex justify-between py-2.5 border-b border-[#141414]">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${open ? 'bg-blue-500' : 'bg-[#222]'}`} />
+                        <span className="text-[#555] text-sm">{days}</span>
+                      </div>
+                      <span className={`text-sm font-medium ${open ? 'text-white' : 'text-[#2a2a2a]'}`}>{hours}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+
+            {/* Mapa */}
+            <Reveal delay="reveal-delay-2">
+              <div className="relative rounded-2xl overflow-hidden border border-[#1E1E1E] aspect-square bg-[#0e0e0e]">
+                {/*
+                  Substitua o src abaixo pelo iframe do Google Maps real.
+                  Vá em maps.google.com → Compartilhar → Incorporar mapa → copie o src do iframe
+                */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-2xl mb-4">
+                    📍
+                  </div>
+                  <p className="text-[#333] text-sm font-medium">Mapa em breve</p>
+                  <p className="text-[#222] text-xs mt-1 max-w-xs">
+                    Adicione o endereço real e cole o embed do Google Maps aqui
+                  </p>
+                </div>
+
+                {/* Descomente e cole o src do Google Maps aqui quando tiver o endereço:
+                <iframe
+                  src="COLE_O_SRC_AQUI"
+                  className="w-full h-full border-0 grayscale"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+                <div className="absolute inset-0 bg-blue-900/10 pointer-events-none" />
+                */}
+              </div>
+            </Reveal>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <SectionDivider />
+      <section>
+        <Reveal>
+          <div className="max-w-6xl mx-auto px-6 py-24">
+            <div className="relative rounded-3xl border border-[#1E1E1E] p-10 sm:p-14 overflow-hidden hover:border-blue-600/20 transition-colors duration-500 group">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600/0 to-blue-600/0 group-hover:from-blue-600/[0.04] group-hover:to-transparent transition-all duration-700 pointer-events-none rounded-3xl" />
+              <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
+                <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight max-w-sm">
+                  Pronto para<br /><span className="text-blue-500">agendar?</span>
+                </h2>
+                <div className="shrink-0">
+                  <p className="text-[#333] text-sm mb-4">Sem ligação. Sem espera. Só estilo.</p>
+                  <Link to="/agendar" className="btn-primary inline-block px-8 py-3.5 text-sm">
+                    Agendar agora
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer className="border-t border-[#141414]">
+        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-[#2a2a2a] text-sm">
+            Barbearia <span className="text-blue-600">Avance</span> — Ryann França
+          </span>
+          <span className="text-[#222] text-xs">© {new Date().getFullYear()} Todos os direitos reservados.</span>
+        </div>
+      </footer>
+    </>
+  );
+}
