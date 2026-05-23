@@ -212,20 +212,20 @@ export default function Home() {
               <div className="space-y-6">
                 <div>
                   <p className="text-[#333] text-xs uppercase tracking-wider mb-2">Endereço</p>
-                  {/* Substitua pelo endereço real */}
-                  <p className="text-white font-medium">Rua Exemplo, 123 — Bairro</p>
-                  <p className="text-[#555] text-sm mt-0.5">Cidade — Estado, CEP 00000-000</p>
+                  <a
+                    href="https://maps.google.com/?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ"
+                    target="_blank" rel="noreferrer"
+                    className="text-white font-medium hover:text-blue-400 transition-colors block"
+                  >
+                    R. Tupinambás, 16 — Heliópolis
+                  </a>
+                  <p className="text-[#555] text-sm mt-0.5">Belford Roxo — RJ, 26140-330</p>
                 </div>
 
                 <div className="h-px bg-[#1A1A1A]" />
 
                 <div>
                   <p className="text-[#333] text-xs uppercase tracking-wider mb-2">Contato</p>
-                  {/* Substitua pelo contato real */}
-                  <a href="https://wa.me/5511999999999" target="_blank" rel="noreferrer"
-                    className="text-white font-medium hover:text-blue-400 transition-colors block">
-                    (11) 99999-9999 · WhatsApp
-                  </a>
                   <a href="https://instagram.com/barbearia.avance" target="_blank" rel="noreferrer"
                     className="text-[#555] text-sm hover:text-blue-400 transition-colors mt-0.5 block">
                     @barbearia.avance
@@ -256,30 +256,15 @@ export default function Home() {
             {/* Mapa */}
             <Reveal delay="reveal-delay-2">
               <div className="relative rounded-2xl overflow-hidden border border-[#1E1E1E] aspect-square bg-[#0e0e0e]">
-                {/*
-                  Substitua o src abaixo pelo iframe do Google Maps real.
-                  Vá em maps.google.com → Compartilhar → Incorporar mapa → copie o src do iframe
-                */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-16 h-16 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-2xl mb-4">
-                    📍
-                  </div>
-                  <p className="text-[#333] text-sm font-medium">Mapa em breve</p>
-                  <p className="text-[#222] text-xs mt-1 max-w-xs">
-                    Adicione o endereço real e cole o embed do Google Maps aqui
-                  </p>
-                </div>
-
-                {/* Descomente e cole o src do Google Maps aqui quando tiver o endereço:
                 <iframe
-                  src="COLE_O_SRC_AQUI"
+                  src="https://maps.google.com/maps?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ,+26140-330,+Brasil&output=embed&hl=pt-BR"
                   className="w-full h-full border-0 grayscale"
                   allowFullScreen
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
+                  title="Localização da Barbearia Avance"
                 />
-                <div className="absolute inset-0 bg-blue-900/10 pointer-events-none" />
-                */}
+                <div className="absolute inset-0 bg-blue-900/10 pointer-events-none rounded-2xl" />
               </div>
             </Reveal>
 
@@ -313,9 +298,15 @@ export default function Home() {
       {/* ── FOOTER ── */}
       <footer className="border-t border-[#141414]">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-[#2a2a2a] text-sm">
-            Barbearia <span className="text-blue-600">Avance</span> — Ryann França
-          </span>
+          <div className="flex items-center gap-3">
+            <img src="/logo.jpeg" alt="Avance" className="h-6 w-6 rounded-full object-cover opacity-60" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <div>
+              <span className="text-[#2a2a2a] text-sm">
+                Barbearia <span className="text-blue-600">Avance</span> — Ryann França
+              </span>
+              <p className="text-[#1e1e1e] text-xs">R. Tupinambás, 16 · Heliópolis · Belford Roxo — RJ</p>
+            </div>
+          </div>
           <span className="text-[#222] text-xs">© {new Date().getFullYear()} Todos os direitos reservados.</span>
         </div>
       </footer>
