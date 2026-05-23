@@ -25,6 +25,7 @@ model Service {
   appointments Appointment[]
 }
 
+// status: confirmed | completed | no_show | cancelled
 model Appointment {
   id          Int      @id @default(autoincrement())
   clientName  String
@@ -33,6 +34,7 @@ model Appointment {
   time        String
   status      String   @default("confirmed")
   notes       String   @default("")
+  price       Float    @default(0)
   serviceId   Int
   service     Service  @relation(fields: [serviceId], references: [id])
   createdAt   DateTime @default(now())
@@ -44,4 +46,22 @@ model RecurringBlock {
   dayOfWeek  Int
   time       String
   notes      String @default("")
+}
+
+// Horário de funcionamento por dia da semana (0=Dom, 1=Seg, ..., 6=Sab)
+model BusinessHours {
+  id        Int     @id @default(autoincrement())
+  dayOfWeek Int     @unique
+  isOpen    Boolean @default(true)
+  openTime  String  @default("09:00")
+  closeTime String  @default("19:00")
+}
+
+// Bloqueio de dia específico (férias, feriado, folga)
+model DayBlock {
+  id        Int     @id @default(autoincrement())
+  date      String
+  reason    String  @default("")
+  startTime String?
+  endTime   String?
 }

@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const appointmentRoutes = require('./routes/appointments');
 const serviceRoutes = require('./routes/services');
 const slotRoutes = require('./routes/slots');
+const businessRoutes = require('./routes/business');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/slots', slotRoutes);
+app.use('/api/business', businessRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

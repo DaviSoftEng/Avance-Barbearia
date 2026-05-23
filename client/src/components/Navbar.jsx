@@ -66,6 +66,7 @@ export default function Navbar() {
             <Link to="/login" className="btn-ghost">Entrar</Link>
           )}
 
+          <Link to="/meu-agendamento" className="btn-ghost">Meu horário</Link>
           <Link to="/agendar" className="btn-primary ml-2 px-5 py-2 text-sm">
             Agendar
           </Link>
@@ -98,6 +99,7 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
+          <Link to="/meu-agendamento" className="block py-2.5 text-[#666] hover:text-white text-sm transition-colors">Meu horário</Link>
           <div className="h-px bg-[#1A1A1A] my-3" />
           {user ? (
             <>
