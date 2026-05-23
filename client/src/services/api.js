@@ -13,7 +13,8 @@ export const getServices = () => api.get('/services');
 export const getAvailableSlots = (date, duration) => api.get(`/slots/available?date=${date}${duration ? `&duration=${duration}` : ''}`);
 export const createAppointment = (data) => api.post('/appointments', data);
 export const lookupAppointment = (phone) => api.get(`/appointments/lookup?phone=${phone}`);
-export const cancelAppointmentPublic = (id) => api.patch(`/appointments/${id}/cancel`);
+export const updateAppointment = (id, data) => api.put(`/appointments/${id}`, data);
+export const cancelAppointmentPublic = (id) => api.patch(`/appointments/${id}/cancel-public`);
 export const getBusinessHours = () => api.get('/business/hours');
 
 // Auth

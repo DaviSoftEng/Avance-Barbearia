@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  getAppointments, updateAppointmentStatus, cancelAppointment, deleteAppointment,
+  getAppointments, updateAppointmentStatus, updateAppointment, cancelAppointment, deleteAppointment,
   getStats, getClients,
   getAllServices, createService, updateService, deleteService,
   getRecurringBlocks, createRecurringBlock, deleteRecurringBlock,
@@ -265,7 +265,7 @@ function TabAgenda() {
 
       {view === 'week'
         ? <WeekView weekDates={weekDates} apptsByDate={apptsByDate} onStatusChange={handleStatusChange} onDelete={handleDelete} />
-        : <DayView date={selectedDate} appointments={dayAppts} loading={loading} onStatusChange={handleStatusChange} onDelete={handleDelete} />
+        : <DayView date={selectedDate} appointments={dayAppts} loading={loading} onStatusChange={handleStatusChange} onDelete={handleDelete} onReload={load} />
       }
     </div>
   );
@@ -296,8 +296,9 @@ function WeekView({ weekDates, apptsByDate, onStatusChange, onDelete }) {
   );
 }
 
-function DayView({ date, appointments, loading, onStatusChange, onDelete }) {
+function DayView({ date, appointments, loading, onStatusChange, onDelete, onReload }) {
   const [expanded, setExpanded] = useState(null);
+  const [editingAppt, setEditingAppt] = useState(null);
   const dateLabel = date
     ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     : '';
@@ -343,6 +344,7 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete }) {
                   {a.notes && <Info label="Obs." value={a.notes} span2 />}
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
+                  <ActionBtn color="blue" onClick={() => setEditingAppt(a)}>Editar</ActionBtn>
                   {a.status !== 'completed' && (
                     <ActionBtn color="green" onClick={() => onStatusChange(a.id, 'completed')}>Marcar concluído</ActionBtn>
                   )}
@@ -361,6 +363,14 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete }) {
           </div>
         ))}
       </div>
+
+      {editingAppt && (
+        <EditModal
+          appointment={editingAppt}
+          onClose={() => setEditingAppt(null)}
+          onSaved={() => { setEditingAppt(null); onReload(); }}
+        />
+      )}
     </div>
   );
 }
@@ -713,6 +723,7 @@ function Info({ label, value, accent, span2 }) {
 
 function ActionBtn({ color, onClick, children }) {
   const styles = {
+    blue:   'bg-blue-900/30 border-blue-800/40 text-blue-400 hover:bg-blue-900/50',
     green:  'bg-green-900/40 border-green-800/50 text-green-400 hover:bg-green-900/60',
     yellow: 'bg-yellow-900/30 border-yellow-800/40 text-yellow-400 hover:bg-yellow-900/50',
     red:    'bg-red-900/20 border-red-900/40 text-red-400 hover:bg-red-900/40',
@@ -721,6 +732,147 @@ function ActionBtn({ color, onClick, children }) {
     <button onClick={onClick} className={`px-3 py-1.5 border text-xs rounded-lg transition-all ${styles[color]}`}>
       {children}
     </button>
+  );
+}
+
+function EditModal({ appointment, onClose, onSaved }) {
+  const [allServices, setAllServices] = useState([]);
+  const [form, setForm] = useState({
+    clientName:  appointment.clientName,
+    clientPhone: appointment.clientPhone,
+    date:        appointment.date,
+    time:        appointment.time,
+    notes:       appointment.notes || '',
+    serviceIds:  appointment.services?.map((as) => as.serviceId) || [],
+  });
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState('');
+
+  useEffect(() => {
+    getAllServices().then((r) => setAllServices(r.data.filter((s) => s.active)));
+  }, []);
+
+  const toggleSvc = (id) =>
+    setForm((f) => ({
+      ...f,
+      serviceIds: f.serviceIds.includes(id) ? f.serviceIds.filter((s) => s !== id) : [...f.serviceIds, id],
+    }));
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (form.serviceIds.length === 0) { setError('Selecione ao menos um serviço'); return; }
+    setSaving(true); setError('');
+    try {
+      await updateAppointment(appointment.id, form);
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar alterações');
+    } finally { setSaving(false); }
+  };
+
+  const totalDur   = allServices.filter((s) => form.serviceIds.includes(s.id)).reduce((t, s) => t + s.duration, 0);
+  const totalPrice = allServices.filter((s) => form.serviceIds.includes(s.id)).reduce((t, s) => t + s.price, 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center px-4">
+      <div className="bg-[#0d0d0d] border border-[#1E1E1E] rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+        <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between sticky top-0 bg-[#0d0d0d] z-10">
+          <div>
+            <h3 className="text-white font-semibold text-sm">Editar agendamento</h3>
+            <p className="text-[#444] text-xs">#{appointment.id} · {appointment.clientName}</p>
+          </div>
+          <button onClick={onClose} className="text-[#444] hover:text-white text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+        </div>
+
+        <form onSubmit={handleSave} className="p-5 space-y-5">
+          {/* Cliente */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[#444] text-xs block mb-1">Nome</label>
+              <input value={form.clientName} onChange={(e) => setForm((f) => ({ ...f, clientName: e.target.value }))}
+                className="input-field" required />
+            </div>
+            <div>
+              <label className="text-[#444] text-xs block mb-1">Telefone</label>
+              <input type="tel" value={form.clientPhone} onChange={(e) => setForm((f) => ({ ...f, clientPhone: e.target.value }))}
+                className="input-field" required />
+            </div>
+          </div>
+
+          {/* Data e hora */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[#444] text-xs block mb-1">Data</label>
+              <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                className="input-field" required />
+            </div>
+            <div>
+              <label className="text-[#444] text-xs block mb-1">Horário</label>
+              <input type="time" value={form.time} onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                className="input-field" required />
+            </div>
+          </div>
+
+          {/* Serviços */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[#444] text-xs">Serviços</label>
+              {form.serviceIds.length > 0 && (
+                <span className="text-[#444] text-xs">{totalDur} min · {fmtCurrency(totalPrice)}</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              {allServices.map((s) => {
+                const checked = form.serviceIds.includes(s.id);
+                return (
+                  <label key={s.id}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+                      checked ? 'bg-blue-950/40 border-blue-800/50' : 'bg-[#111] border-[#1E1E1E] hover:border-[#2a2a2a]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${checked ? 'border-blue-500 bg-blue-600' : 'border-[#333]'}`}>
+                        {checked && <div className="w-2 h-1.5 bg-white rounded-sm" />}
+                      </div>
+                      <div>
+                        <p className={`text-sm ${checked ? 'text-blue-300' : 'text-white'}`}>{s.name}</p>
+                        <p className="text-[#444] text-xs">{s.duration} min</p>
+                      </div>
+                    </div>
+                    <span className="text-[#555] text-sm shrink-0 ml-3">{fmtCurrency(s.price)}</span>
+                    <input type="checkbox" className="hidden" checked={checked} readOnly onClick={() => toggleSvc(s.id)} />
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Observações */}
+          <div>
+            <label className="text-[#444] text-xs block mb-1">Observações</label>
+            <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              rows={2} className="input-field resize-none" placeholder="Opcional..." />
+          </div>
+
+          {error && (
+            <div className="bg-red-900/20 border border-red-900/40 rounded-xl px-3 py-2">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 bg-[#111] border border-[#1E1E1E] text-[#555] py-2.5 rounded-xl text-sm hover:text-white transition-all">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-50">
+              {saving ? 'Salvando...' : 'Salvar alterações'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

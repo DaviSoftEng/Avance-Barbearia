@@ -266,6 +266,105 @@ exports.getClients = async (req, res) => {
   }
 };
 
+exports.updateAppointment = async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { clientName, clientPhone, serviceIds, date, time, notes } = req.body;
+
+  if (!clientName || !clientPhone || !Array.isArray(serviceIds) || serviceIds.length === 0 || !date || !time) {
+    return res.status(400).json({ error: 'Dados incompletos' });
+  }
+  const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
+  if (!phoneRegex.test(clientPhone)) return res.status(400).json({ error: 'Telefone inválido' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Data inválida' });
+  if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Horário inválido' });
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const services = await tx.service.findMany({
+        where: { id: { in: serviceIds.map(Number) }, active: true },
+      });
+      if (services.length !== serviceIds.length) {
+        throw { status: 400, error: 'Um ou mais serviços não encontrados' };
+      }
+
+      const totalPrice    = Math.round(services.reduce((s, sv) => s + sv.price, 0) * 100) / 100;
+      const totalDuration = services.reduce((s, sv) => s + sv.duration, 0);
+      const startMin      = timeToMinutes(time);
+      const endMin        = startMin + totalDuration;
+
+      const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+      const bh = await tx.businessHours.findFirst({ where: { dayOfWeek } });
+      if (bh && !bh.isOpen) throw { status: 409, error: 'Barbearia fechada neste dia' };
+      if (bh && (startMin < timeToMinutes(bh.openTime) || endMin > timeToMinutes(bh.closeTime))) {
+        throw { status: 409, error: 'Fora do horário de funcionamento' };
+      }
+
+      const dayBlock = await tx.dayBlock.findFirst({ where: { date } });
+      if (dayBlock) {
+        if (!dayBlock.startTime) throw { status: 409, error: 'Dia bloqueado na agenda' };
+        if (startMin < timeToMinutes(dayBlock.endTime) && endMin > timeToMinutes(dayBlock.startTime)) {
+          throw { status: 409, error: 'Horário bloqueado na agenda' };
+        }
+      }
+
+      // Conflito com outros agendamentos — exclui o próprio
+      const existing = await tx.appointment.findMany({
+        where: { date, status: { in: ['confirmed', 'completed'] }, id: { not: id } },
+        select: { time: true, totalDuration: true },
+      });
+      for (const appt of existing) {
+        const aStart = timeToMinutes(appt.time);
+        const aEnd   = aStart + (appt.totalDuration || 30);
+        if (startMin < aEnd && endMin > aStart) {
+          throw { status: 409, error: 'Horário já ocupado' };
+        }
+      }
+
+      await tx.appointmentService.deleteMany({ where: { appointmentId: id } });
+
+      return tx.appointment.update({
+        where: { id },
+        data: {
+          clientName,
+          clientPhone,
+          date,
+          time,
+          notes: notes || '',
+          price: totalPrice,
+          totalDuration,
+          services: { create: serviceIds.map((sid) => ({ serviceId: Number(sid) })) },
+        },
+        include: APPOINTMENT_INCLUDE,
+      });
+    });
+
+    res.json(result);
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.error });
+    console.error('[updateAppointment]', e);
+    res.status(500).json({ error: 'Erro ao atualizar agendamento' });
+  }
+};
+
+// Rota pública — cliente cancela o próprio agendamento (sem token)
+exports.cancelAppointmentPublic = async (req, res) => {
+  try {
+    const appt = await prisma.appointment.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!appt) return res.status(404).json({ error: 'Agendamento não encontrado' });
+    if (appt.status !== 'confirmed') {
+      return res.status(400).json({ error: 'Apenas agendamentos confirmados podem ser cancelados' });
+    }
+    const updated = await prisma.appointment.update({
+      where: { id: parseInt(req.params.id) },
+      data: { status: 'cancelled' },
+    });
+    res.json(updated);
+  } catch (e) {
+    console.error('[cancelAppointmentPublic]', e);
+    res.status(500).json({ error: 'Erro ao cancelar agendamento' });
+  }
+};
+
 function getStartOfWeek(date) {
   const d = new Date(date);
   d.setDate(d.getDate() - d.getDay());
