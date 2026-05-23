@@ -110,19 +110,10 @@ export default function Home() {
                 {/* Troque o src abaixo pela foto real do Ryann */}
                 <div className="relative aspect-[3/4] max-w-sm mx-auto lg:mx-0 rounded-2xl overflow-hidden bg-[#111111] border border-[#1E1E1E]">
                   <img
-                    src="/ryann.jpg"
+                    src="/barbeiro.png"
                     alt="Ryann França"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    className="w-full h-full object-cover object-top"
                   />
-                  {/* Placeholder visual caso sem foto */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 barber-photo-placeholder">
-                    <div className="w-24 h-24 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-4xl mb-4">
-                      💈
-                    </div>
-                    <p className="text-[#333] text-sm">Adicione <code className="text-blue-500">ryann.jpg</code></p>
-                    <p className="text-[#222] text-xs mt-1">na pasta <code className="text-[#333]">client/public/</code></p>
-                  </div>
 
                   {/* Overlay gradiente na foto */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/60 via-transparent to-transparent pointer-events-none" />
