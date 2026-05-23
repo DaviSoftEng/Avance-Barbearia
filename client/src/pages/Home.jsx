@@ -253,18 +253,40 @@ export default function Home() {
               </div>
             </Reveal>
 
-            {/* Mapa */}
+            {/* Mapa + foto */}
             <Reveal delay="reveal-delay-2">
-              <div className="relative rounded-2xl overflow-hidden border border-[#1E1E1E] aspect-square bg-[#0e0e0e]">
-                <iframe
-                  src="https://maps.google.com/maps?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ,+26140-330,+Brasil&output=embed&hl=pt-BR"
-                  className="w-full h-full border-0 grayscale"
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="Localização da Barbearia Avance"
-                />
-                <div className="absolute inset-0 bg-blue-900/10 pointer-events-none rounded-2xl" />
+              <div className="space-y-3">
+                {/* Foto da fachada — coloque fachada.jpg em client/public/ */}
+                <div className="relative rounded-2xl overflow-hidden border border-[#1E1E1E] bg-[#0e0e0e]">
+                  <img
+                    src="/fachada.jpg"
+                    alt="Barbearia Avance — Fachada"
+                    className="w-full h-56 object-cover"
+                    onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                  />
+                </div>
+
+                {/* Mapa */}
+                <div className="relative rounded-2xl overflow-hidden border border-[#1E1E1E] aspect-video bg-[#0e0e0e]">
+                  <iframe
+                    src="https://maps.google.com/maps?q=Barbearia+Avance+R+Tupinambas+16+Heliopolis+Belford+Roxo+RJ&output=embed&hl=pt-BR&z=16"
+                    className="w-full h-full border-0 grayscale"
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Localização da Barbearia Avance"
+                  />
+                  <div className="absolute inset-0 bg-blue-900/10 pointer-events-none" />
+                </div>
+
+                <a
+                  href="https://maps.google.com/?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 text-sm border border-[#1E1E1E] text-[#555] rounded-xl hover:text-white hover:border-[#333] transition-all"
+                >
+                  📍 Abrir no Google Maps
+                </a>
               </div>
             </Reveal>
 
