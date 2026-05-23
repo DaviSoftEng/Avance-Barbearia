@@ -134,10 +134,10 @@ export default function Home() {
                 Ryann<br />França
               </h2>
               <p className="text-[#555] leading-relaxed mb-4">
-                Ryann França tem 2 anos na barbearia e uma agenda que não para. Não é à toa — ele trata cada corte com seriedade, cada cliente com atenção e cada detalhe como se fosse o primeiro. É esse cuidado que faz as pessoas voltarem.
+                A Barbearia Avance nasceu da crença de que cuidar da aparência é, antes de tudo, um ato de respeito próprio. Ryann França percebeu que muitos homens deixam isso de lado no dia a dia — e criou um espaço onde você para, é bem atendido e sai se sentindo no seu melhor.
               </p>
               <p className="text-[#444] leading-relaxed mb-8 text-sm">
-                Na Avance você é bem recebido, ouvido e atendido no horário certo. O corte que você pede é o corte que você leva.
+                Com 2 anos de ofício e dedicação em cada atendimento, Ryann une técnica e atenção genuína ao cliente. Aqui não é só corte de cabelo — é o momento da semana que você reserva pra si mesmo.
               </p>
 
               <div className="space-y-3 mb-8">
