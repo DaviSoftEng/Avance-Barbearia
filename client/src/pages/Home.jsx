@@ -134,17 +134,17 @@ export default function Home() {
                 Ryann<br />França
               </h2>
               <p className="text-[#555] leading-relaxed mb-4">
-                Dois anos de ofício com uma dedicação que poucos têm. O Ryann não escolheu a barbearia por acaso — escolheu por paixão, e isso aparece em cada corte. Técnica afiada, olho apurado e atenção a cada detalhe que faz a diferença no espelho.
+                O Ryann tem 2 anos de barbearia e coloca dedicação total em cada atendimento. Aprende rápido, trabalha com capricho e trata cada cliente com respeito — do primeiro ao último horário do dia.
               </p>
               <p className="text-[#444] leading-relaxed mb-8 text-sm">
-                Não é o tempo que define um bom profissional — é a entrega. E a entrega do Ryann é o que os clientes que já passaram pela cadeira confirmam: resultado limpo, atendimento sem pressa e um ambiente onde você se sente bem-vindo.
+                Você agenda pelo site, chega no horário marcado e sai com o corte que pediu. Sem espera, sem enrolação.
               </p>
 
               <div className="space-y-3 mb-8">
                 {[
-                  'Degradês e cortes modernos com precisão',
-                  'Acabamento na navalha e alinhamento impecável',
-                  'Atendimento personalizado para cada estilo',
+                  'Cortes modernos e degradês',
+                  'Acabamento na navalha e alinhamento',
+                  'Pontual e atencioso com cada cliente',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-3">
                     <span className="text-blue-500 mt-0.5 shrink-0 text-sm">✓</span>
