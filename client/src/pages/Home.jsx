@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getServices } from '../services/api';
+import { getServices, getBusinessHours } from '../services/api';
 import { useInView } from '../hooks/useInView';
 
 function Reveal({ children, className = '', delay = '' }) {
@@ -12,16 +12,42 @@ function Reveal({ children, className = '', delay = '' }) {
   );
 }
 
+const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// Agrupa dias consecutivos com mesmo horário em faixas (ex: Seg–Sex)
+function groupHours(hours) {
+  if (!hours?.length) return [];
+  const sorted = [...hours].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+  const groups = [];
+  let cur = null;
+  for (const h of sorted) {
+    if (cur && cur.isOpen === h.isOpen && cur.openTime === h.openTime && cur.closeTime === h.closeTime) {
+      cur.endDay = h.dayOfWeek;
+    } else {
+      if (cur) groups.push(cur);
+      cur = { startDay: h.dayOfWeek, endDay: h.dayOfWeek, isOpen: h.isOpen, openTime: h.openTime, closeTime: h.closeTime };
+    }
+  }
+  if (cur) groups.push(cur);
+  return groups.map((g) => ({
+    days:  g.startDay === g.endDay ? DAYS_FULL[g.startDay] : `${DAYS_FULL[g.startDay]} a ${DAYS_FULL[g.endDay]}`,
+    hours: g.isOpen ? `${g.openTime} – ${g.closeTime}` : 'Fechado',
+    open:  g.isOpen,
+  }));
+}
+
 function SectionDivider() {
   return <div className="border-t border-[#1A1A1A]" />;
 }
 
 export default function Home() {
-  const [services, setServices] = useState([]);
-  const [cursor, setCursor] = useState(true);
+  const [services, setServices]     = useState([]);
+  const [businessHours, setBusinessHours] = useState([]);
+  const [cursor, setCursor]         = useState(true);
 
   useEffect(() => {
     getServices().then((r) => setServices(r.data)).catch(() => {});
+    getBusinessHours().then((r) => setBusinessHours(r.data)).catch(() => {});
     const t = setInterval(() => setCursor((c) => !c), 600);
     return () => clearInterval(t);
   }, []);
@@ -236,11 +262,7 @@ export default function Home() {
 
                 <div>
                   <p className="text-[#333] text-xs uppercase tracking-wider mb-3">Horários</p>
-                  {[
-                    { days: 'Segunda a Sexta', hours: '09:00 – 19:00', open: true },
-                    { days: 'Sábado',          hours: '09:00 – 17:00', open: true },
-                    { days: 'Domingo',         hours: 'Fechado',        open: false },
-                  ].map(({ days, hours, open }) => (
+                  {groupHours(businessHours).map(({ days, hours, open }) => (
                     <div key={days} className="flex justify-between py-2.5 border-b border-[#141414]">
                       <div className="flex items-center gap-2.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${open ? 'bg-blue-500' : 'bg-[#222]'}`} />
@@ -249,6 +271,9 @@ export default function Home() {
                       <span className={`text-sm font-medium ${open ? 'text-white' : 'text-[#2a2a2a]'}`}>{hours}</span>
                     </div>
                   ))}
+                  {businessHours.length === 0 && (
+                    <p className="text-[#222] text-sm">Carregando...</p>
+                  )}
                 </div>
               </div>
             </Reveal>
