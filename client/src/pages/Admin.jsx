@@ -17,6 +17,10 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelado',         color: 'text-red-400',    bg: 'bg-red-900/20 border-red-800/40' },
 };
 
+function apptServiceNames(a) {
+  return a.services?.map((as) => as.service?.name).filter(Boolean).join(' + ') || '—';
+}
+
 function fmt(date) {
   return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
@@ -162,7 +166,7 @@ function TabDashboard() {
               <div key={a.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${STATUS_CONFIG[a.status]?.bg}`}>
                 <div>
                   <p className="text-white text-sm font-medium">{a.time} · {a.clientName}</p>
-                  <p className="text-[#555] text-xs">{a.service?.name}</p>
+                  <p className="text-[#555] text-xs">{apptServiceNames(a)}</p>
                 </div>
                 <span className={`text-xs ${STATUS_CONFIG[a.status]?.color}`}>{STATUS_CONFIG[a.status]?.label}</span>
               </div>
@@ -319,7 +323,7 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete }) {
                 <p className="text-white text-lg font-bold w-12">{a.time}</p>
                 <div>
                   <p className="text-white font-medium">{a.clientName}</p>
-                  <p className="text-[#555] text-sm">{a.service?.name} · {fmtCurrency(a.price)}</p>
+                  <p className="text-[#555] text-sm">{apptServiceNames(a)} · {fmtCurrency(a.price)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -333,8 +337,8 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete }) {
               <div className="px-5 pb-4 border-t border-[#1a1a1a] pt-4 space-y-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <Info label="Telefone"  value={a.clientPhone} />
-                  <Info label="Serviço"   value={a.service?.name} />
-                  <Info label="Duração"   value={`${a.service?.duration} min`} />
+                  <Info label="Serviço"   value={apptServiceNames(a)} />
+                  <Info label="Duração"   value={`${a.totalDuration} min`} />
                   <Info label="Valor"     value={fmtCurrency(a.price)} accent />
                   {a.notes && <Info label="Obs." value={a.notes} span2 />}
                 </div>
@@ -415,7 +419,7 @@ function TabClientes() {
                   <p className="text-[#444] text-xs mb-3">Histórico</p>
                   {c.appointments.slice(0, 8).map((a) => (
                     <div key={a.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${STATUS_CONFIG[a.status]?.bg}`}>
-                      <span className="text-[#aaa] text-xs">{fmt(a.date)} {a.time} · {a.service?.name}</span>
+                      <span className="text-[#aaa] text-xs">{fmt(a.date)} {a.time} · {apptServiceNames(a)}</span>
                       <span className={`text-xs ${STATUS_CONFIG[a.status]?.color}`}>{STATUS_CONFIG[a.status]?.label}</span>
                     </div>
                   ))}

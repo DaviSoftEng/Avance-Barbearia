@@ -8,7 +8,7 @@ function timeToMinutes(t) {
 function generateSlots(openTime, closeTime, interval = 30) {
   const slots = [];
   let current = timeToMinutes(openTime);
-  const end = timeToMinutes(closeTime);
+  const end   = timeToMinutes(closeTime);
   while (current < end) {
     const h = Math.floor(current / 60);
     const m = current % 60;
@@ -19,18 +19,18 @@ function generateSlots(openTime, closeTime, interval = 30) {
 }
 
 exports.getAvailableSlots = async (req, res) => {
-  const { date } = req.query;
+  const { date, duration } = req.query;
   if (!date) return res.status(400).json({ error: 'Data é obrigatória' });
+
+  const requestedDuration = Math.max(parseInt(duration) || 30, 30);
 
   try {
     const dayOfWeek = new Date(date + 'T12:00:00').getDay();
 
     const bh = await prisma.businessHours.findFirst({ where: { dayOfWeek } });
-    if (bh && !bh.isOpen) {
-      return res.json({ date, available: [], closed: true });
-    }
+    if (bh && !bh.isOpen) return res.json({ date, available: [], closed: true });
 
-    const openTime = bh?.openTime || '09:00';
+    const openTime  = bh?.openTime  || '09:00';
     const closeTime = bh?.closeTime || '19:00';
 
     const dayBlock = await prisma.dayBlock.findFirst({ where: { date } });
@@ -38,25 +38,42 @@ exports.getAvailableSlots = async (req, res) => {
       return res.json({ date, available: [], blocked: true, reason: dayBlock.reason });
     }
 
+    // Monta lista de intervalos ocupados (start, end em minutos)
+    const occupied = [];
+
+    // Agendamentos existentes com sua duração real
     const booked = await prisma.appointment.findMany({
       where: { date, status: { in: ['confirmed', 'completed'] } },
-      select: { time: true },
+      select: { time: true, totalDuration: true },
     });
-    const occupied = new Set(booked.map((a) => a.time));
+    booked.forEach((a) => {
+      const s = timeToMinutes(a.time);
+      occupied.push({ start: s, end: s + (a.totalDuration || 30) });
+    });
 
+    // Horários fixos recorrentes (30 min cada)
     const recurring = await prisma.recurringBlock.findMany({ where: { dayOfWeek }, select: { time: true } });
-    recurring.forEach((r) => occupied.add(r.time));
+    recurring.forEach((r) => {
+      const s = timeToMinutes(r.time);
+      occupied.push({ start: s, end: s + 30 });
+    });
 
+    // Bloqueio parcial de horário
     if (dayBlock?.startTime && dayBlock?.endTime) {
-      const blockStart = timeToMinutes(dayBlock.startTime);
-      const blockEnd = timeToMinutes(dayBlock.endTime);
-      generateSlots(openTime, closeTime).forEach((s) => {
-        const t = timeToMinutes(s);
-        if (t >= blockStart && t < blockEnd) occupied.add(s);
-      });
+      occupied.push({ start: timeToMinutes(dayBlock.startTime), end: timeToMinutes(dayBlock.endTime) });
     }
 
-    const available = generateSlots(openTime, closeTime).filter((s) => !occupied.has(s));
+    const closeMin = timeToMinutes(closeTime);
+
+    // Um slot está disponível se [slotStart, slotStart + duration) não sobrepõe nenhum intervalo ocupado
+    // e não ultrapassa o horário de fechamento
+    const available = generateSlots(openTime, closeTime).filter((slot) => {
+      const slotStart = timeToMinutes(slot);
+      const slotEnd   = slotStart + requestedDuration;
+      if (slotEnd > closeMin) return false;
+      return !occupied.some((o) => slotStart < o.end && slotEnd > o.start);
+    });
+
     res.json({ date, available });
   } catch (e) {
     console.error('[getAvailableSlots]', e);

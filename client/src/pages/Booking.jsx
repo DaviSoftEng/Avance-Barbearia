@@ -1,32 +1,54 @@
 import { useState, useEffect } from 'react';
 import { getServices, getAvailableSlots, createAppointment } from '../services/api';
 
-const STEPS = ['Serviço', 'Data', 'Horário', 'Dados', 'Confirmar'];
+const STEPS = ['Serviços', 'Data', 'Horário', 'Dados', 'Confirmar'];
+
+function fmtCurrency(v) {
+  return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+}
 
 export default function Booking() {
-  const [step, setStep] = useState(0);
-  const [services, setServices] = useState([]);
-  const [selectedService, setSelectedService] = useState(null);
+  const [step, setStep]                 = useState(0);
+  const [services, setServices]         = useState([]);
+  const [selectedServices, setSelectedServices] = useState([]); // array de service objects
   const [selectedDate, setSelectedDate] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedTime, setSelectedTime] = useState('');
-  const [form, setForm] = useState({ name: '', phone: '' });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [form, setForm]                 = useState({ name: '', phone: '' });
+  const [loading, setLoading]           = useState(false);
+  const [success, setSuccess]           = useState(false);
   const [bookedAppointment, setBookedAppointment] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError]               = useState('');
 
   const today = new Date().toISOString().split('T')[0];
+
+  const totalPrice    = selectedServices.reduce((s, sv) => s + sv.price, 0);
+  const totalDuration = selectedServices.reduce((s, sv) => s + sv.duration, 0);
 
   useEffect(() => {
     getServices().then((r) => setServices(r.data)).catch(() => {});
   }, []);
 
+  const toggleService = (service) => {
+    setSelectedServices((prev) =>
+      prev.find((s) => s.id === service.id)
+        ? prev.filter((s) => s.id !== service.id)
+        : [...prev, service]
+    );
+    // Se mudou os serviços, limpa slots para recarregar
+    setSelectedTime('');
+    setAvailableSlots([]);
+  };
+
   const loadSlots = async (date) => {
+    if (!date || totalDuration === 0) return;
+    setSlotsLoading(true);
     try {
-      const r = await getAvailableSlots(date);
-      setAvailableSlots(r.data.available);
+      const r = await getAvailableSlots(date, totalDuration);
+      setAvailableSlots(r.data.available || []);
     } catch { setAvailableSlots([]); }
+    finally { setSlotsLoading(false); }
   };
 
   const handleDateChange = (e) => {
@@ -36,16 +58,22 @@ export default function Booking() {
     if (date) loadSlots(date);
   };
 
+  // Recarrega slots quando volta para step 2 (caso serviços tenham mudado)
+  const goToStep = (n) => {
+    if (n === 2 && selectedDate) loadSlots(selectedDate);
+    setStep(n);
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
     try {
       const r = await createAppointment({
-        clientName: form.name,
+        clientName:  form.name,
         clientPhone: form.phone,
-        serviceId: selectedService.id,
-        date: selectedDate,
-        time: selectedTime,
+        serviceIds:  selectedServices.map((s) => s.id),
+        date:        selectedDate,
+        time:        selectedTime,
       });
       setBookedAppointment(r.data);
       setSuccess(true);
@@ -55,30 +83,40 @@ export default function Booking() {
   };
 
   const reset = () => {
-    setStep(0); setSelectedService(null); setSelectedDate('');
+    setStep(0); setSelectedServices([]); setSelectedDate('');
     setSelectedTime(''); setAvailableSlots([]);
     setForm({ name: '', phone: '' }); setSuccess(false);
     setBookedAppointment(null); setError('');
   };
 
   if (success) {
+    const apptServices = bookedAppointment.services?.map((as) => as.service) || [];
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6">
         <div className="w-full max-w-md">
           <p className="text-blue-500 text-4xl font-bold mb-2">✓</p>
           <h2 className="text-3xl font-bold text-white mb-1">Agendado.</h2>
           <p className="text-[#555] text-sm mb-8">Te esperamos no horário marcado.</p>
-
           <div className="card p-6 space-y-4 mb-6">
-            <SummaryRow label="Serviço" value={bookedAppointment.service.name} />
-            <SummaryRow label="Data" value={new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })} />
-            <SummaryRow label="Horário" value={selectedTime} accent />
-            <SummaryRow label="Nome" value={bookedAppointment.clientName} />
+            <div>
+              <p className="text-[#444] text-xs mb-2">Serviços</p>
+              <div className="space-y-1">
+                {apptServices.map((s) => (
+                  <div key={s.id} className="flex justify-between text-sm">
+                    <span className="text-white">{s.name}</span>
+                    <span className="text-[#555]">{fmtCurrency(s.price)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <SummaryRow label="Data"     value={new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })} />
+            <SummaryRow label="Horário"  value={selectedTime} accent />
+            <SummaryRow label="Duração"  value={`${bookedAppointment.totalDuration} min`} />
+            <SummaryRow label="Nome"     value={bookedAppointment.clientName} />
             <div className="border-t border-[#1E1E1E] pt-4">
-              <SummaryRow label="Total" value={`R$${bookedAppointment.service.price.toFixed(2)}`} accent large />
+              <SummaryRow label="Total" value={fmtCurrency(bookedAppointment.price)} accent large />
             </div>
           </div>
-
           <button onClick={reset} className="btn-primary w-full py-3 text-sm">
             Fazer outro agendamento
           </button>
@@ -102,9 +140,7 @@ export default function Booking() {
             <div key={s} className="flex items-center flex-1 last:flex-none">
               <div className={`h-[2px] flex-1 transition-all duration-300 ${i === 0 ? 'hidden' : i <= step ? 'bg-blue-600' : 'bg-[#1E1E1E]'}`} />
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-all duration-200 ${
-                i < step ? 'bg-blue-600 text-white' :
-                i === step ? 'bg-blue-600 text-white' :
-                'bg-[#1A1A1A] text-[#333] border border-[#252525]'
+                i < step ? 'bg-blue-600 text-white' : i === step ? 'bg-blue-600 text-white' : 'bg-[#1A1A1A] text-[#333] border border-[#252525]'
               }`}>
                 {i < step ? '✓' : i + 1}
               </div>
@@ -112,51 +148,92 @@ export default function Booking() {
           ))}
         </div>
 
-        {/* Step 0 — Service */}
+        {/* Step 0 — Serviços (multi-select) */}
         {step === 0 && (
           <div>
-            <p className="text-[#555] text-sm mb-6">Qual serviço você deseja?</p>
-            <div className="divide-y divide-[#1A1A1A] border border-[#1A1A1A] rounded-2xl overflow-hidden">
-              {services.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => { setSelectedService(s); setStep(1); }}
-                  className="w-full px-5 py-4 text-left flex items-center justify-between hover:bg-[#111111] transition-colors group"
-                >
-                  <div>
-                    <p className="text-white text-sm font-medium group-hover:text-blue-400 transition-colors">{s.name}</p>
-                    <p className="text-[#444] text-xs mt-0.5">{s.duration} min</p>
-                  </div>
-                  <p className="text-blue-500 font-bold">R${s.price.toFixed(2)}</p>
-                </button>
-              ))}
+            <p className="text-[#555] text-sm mb-2">Selecione um ou mais serviços</p>
+            <p className="text-[#333] text-xs mb-6">Toque para marcar ou desmarcar</p>
+            <div className="divide-y divide-[#1A1A1A] border border-[#1A1A1A] rounded-2xl overflow-hidden mb-5">
+              {services.map((s) => {
+                const selected = !!selectedServices.find((sv) => sv.id === s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => toggleService(s)}
+                    className={`w-full px-5 py-4 text-left flex items-center justify-between transition-colors ${
+                      selected ? 'bg-blue-950/60' : 'hover:bg-[#111111]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                        selected ? 'border-blue-500 bg-blue-600' : 'border-[#333]'
+                      }`}>
+                        {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium transition-colors ${selected ? 'text-blue-300' : 'text-white'}`}>{s.name}</p>
+                        <p className="text-[#444] text-xs mt-0.5">{s.duration} min · {s.description}</p>
+                      </div>
+                    </div>
+                    <p className={`font-bold text-sm ml-4 shrink-0 ${selected ? 'text-blue-400' : 'text-blue-500'}`}>{fmtCurrency(s.price)}</p>
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Resumo dos serviços selecionados */}
+            {selectedServices.length > 0 && (
+              <div className="card p-4 mb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[#555] text-xs">{selectedServices.length} serviço{selectedServices.length !== 1 ? 's' : ''} selecionado{selectedServices.length !== 1 ? 's' : ''}</p>
+                  <p className="text-[#444] text-xs">{totalDuration} min no total</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-[#555] text-sm">Total</p>
+                  <p className="text-white font-bold text-lg">{fmtCurrency(totalPrice)}</p>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setStep(1)}
+              disabled={selectedServices.length === 0}
+              className="btn-primary w-full py-3 text-sm disabled:opacity-20 disabled:cursor-not-allowed"
+            >
+              Continuar
+            </button>
           </div>
         )}
 
-        {/* Step 1 — Date */}
+        {/* Step 1 — Data */}
         {step === 1 && (
           <div>
-            <p className="text-[#555] text-sm mb-6">
-              <span className="text-white">{selectedService?.name}</span> · Escolha a data
+            <p className="text-[#555] text-sm mb-1">
+              {selectedServices.map((s) => s.name).join(' + ')}
             </p>
+            <p className="text-[#333] text-xs mb-6">{totalDuration} min · {fmtCurrency(totalPrice)}</p>
             <div className="card p-5">
               <label className="text-[#444] text-xs block mb-2">Data do agendamento</label>
               <input type="date" min={today} value={selectedDate} onChange={handleDateChange} className="input-field" />
             </div>
-            <StepNav onBack={() => setStep(0)} onNext={() => setStep(2)} disableNext={!selectedDate} />
+            <StepNav onBack={() => setStep(0)} onNext={() => goToStep(2)} disableNext={!selectedDate} />
           </div>
         )}
 
-        {/* Step 2 — Time */}
+        {/* Step 2 — Horário */}
         {step === 2 && (
           <div>
-            <p className="text-[#555] text-sm mb-6">
+            <p className="text-[#555] text-sm mb-1">
               {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
             </p>
-            {availableSlots.length === 0 ? (
+            <p className="text-[#333] text-xs mb-6">Mostrando horários com {totalDuration} min disponíveis</p>
+            {slotsLoading ? (
+              <div className="card p-10 flex justify-center">
+                <div className="w-5 h-5 border-2 border-[#222] border-t-blue-500 rounded-full animate-spin" />
+              </div>
+            ) : availableSlots.length === 0 ? (
               <div className="card p-8 text-center">
-                <p className="text-[#444] text-sm">Sem horários disponíveis nesta data.</p>
+                <p className="text-[#444] text-sm">Sem horários disponíveis nesta data para a duração selecionada.</p>
               </div>
             ) : (
               <div className="card p-5">
@@ -182,7 +259,7 @@ export default function Booking() {
           </div>
         )}
 
-        {/* Step 3 — Info */}
+        {/* Step 3 — Dados */}
         {step === 3 && (
           <div>
             <p className="text-[#555] text-sm mb-6">Seus dados para confirmação</p>
@@ -202,18 +279,28 @@ export default function Booking() {
           </div>
         )}
 
-        {/* Step 4 — Confirm */}
+        {/* Step 4 — Confirmar */}
         {step === 4 && (
           <div>
             <p className="text-[#555] text-sm mb-6">Revise antes de confirmar</p>
             <div className="card p-5 space-y-4 mb-5">
-              <SummaryRow label="Serviço" value={selectedService.name} />
-              <SummaryRow label="Data" value={new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR')} />
-              <SummaryRow label="Horário" value={selectedTime} accent />
-              <SummaryRow label="Nome" value={form.name} />
+              <div>
+                <p className="text-[#444] text-xs mb-2">Serviços</p>
+                <div className="space-y-1.5">
+                  {selectedServices.map((s) => (
+                    <div key={s.id} className="flex justify-between text-sm">
+                      <span className="text-white">{s.name}</span>
+                      <span className="text-[#555]">{fmtCurrency(s.price)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <SummaryRow label="Data"    value={new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR')} />
+              <SummaryRow label="Horário" value={`${selectedTime} (${totalDuration} min)`} accent />
+              <SummaryRow label="Nome"    value={form.name} />
               <SummaryRow label="Telefone" value={form.phone} />
               <div className="border-t border-[#1E1E1E] pt-4">
-                <SummaryRow label="Total" value={`R$${selectedService.price.toFixed(2)}`} accent large />
+                <SummaryRow label="Total" value={fmtCurrency(totalPrice)} accent large />
               </div>
             </div>
 

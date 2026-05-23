@@ -103,8 +103,8 @@ export default function MeuAgendamento() {
                     </div>
 
                     <div className="border-t border-[#1A1A1A] pt-4 space-y-2 text-sm">
-                      <Row label="Serviço" value={a.service?.name} />
-                      <Row label="Duração" value={`${a.service?.duration} min`} />
+                      <Row label="Serviço" value={a.services?.map((as) => as.service?.name).filter(Boolean).join(' + ') || '—'} />
+                      <Row label="Duração" value={`${a.totalDuration} min`} />
                       <Row label="Valor" value={fmtCurrency(a.price)} accent />
                     </div>
 

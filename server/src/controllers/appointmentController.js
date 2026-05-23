@@ -5,9 +5,14 @@ function timeToMinutes(t) {
   return h * 60 + m;
 }
 
+const APPOINTMENT_INCLUDE = {
+  services: { include: { service: true } },
+};
+
 exports.createAppointment = async (req, res) => {
-  const { clientName, clientPhone, serviceId, date, time, notes } = req.body;
-  if (!clientName || !clientPhone || !serviceId || !date || !time) {
+  const { clientName, clientPhone, serviceIds, date, time, notes } = req.body;
+
+  if (!clientName || !clientPhone || !Array.isArray(serviceIds) || serviceIds.length === 0 || !date || !time) {
     return res.status(400).json({ error: 'Dados incompletos' });
   }
 
@@ -15,64 +20,86 @@ exports.createAppointment = async (req, res) => {
   if (!phoneRegex.test(clientPhone)) {
     return res.status(400).json({ error: 'Telefone inválido' });
   }
-
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(date)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'Data inválida' });
   }
-
-  const timeRegex = /^\d{2}:\d{2}$/;
-  if (!timeRegex.test(time)) {
+  if (!/^\d{2}:\d{2}$/.test(time)) {
     return res.status(400).json({ error: 'Horário inválido' });
   }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Verifica conflito dentro da transação (evita race condition)
-      const conflict = await tx.appointment.findFirst({
-        where: { date, time, status: { in: ['confirmed', 'completed'] } },
+      // Busca os serviços solicitados
+      const services = await tx.service.findMany({
+        where: { id: { in: serviceIds.map(Number) }, active: true },
       });
-      if (conflict) throw { status: 409, error: 'Horário já ocupado' };
+      if (services.length !== serviceIds.length) {
+        throw { status: 400, error: 'Um ou mais serviços não encontrados' };
+      }
 
+      const totalPrice    = Math.round(services.reduce((s, sv) => s + sv.price, 0) * 100) / 100;
+      const totalDuration = services.reduce((s, sv) => s + sv.duration, 0);
+      const startMin      = timeToMinutes(time);
+      const endMin        = startMin + totalDuration;
+
+      // Verifica horário de funcionamento
       const dayOfWeek = new Date(date + 'T12:00:00').getDay();
-
-      const block = await tx.recurringBlock.findFirst({ where: { dayOfWeek, time } });
-      if (block) throw { status: 409, error: 'Horário reservado para cliente fixo' };
+      const bh = await tx.businessHours.findFirst({ where: { dayOfWeek } });
+      if (bh && !bh.isOpen) throw { status: 409, error: 'Barbearia fechada neste dia' };
+      if (bh) {
+        if (startMin < timeToMinutes(bh.openTime) || endMin > timeToMinutes(bh.closeTime)) {
+          throw { status: 409, error: 'Fora do horário de funcionamento' };
+        }
+      }
 
       // Verifica bloqueio de dia
       const dayBlock = await tx.dayBlock.findFirst({ where: { date } });
       if (dayBlock) {
         if (!dayBlock.startTime) throw { status: 409, error: 'Dia bloqueado na agenda' };
-        const t = timeToMinutes(time);
-        if (t >= timeToMinutes(dayBlock.startTime) && t < timeToMinutes(dayBlock.endTime)) {
+        const blockStart = timeToMinutes(dayBlock.startTime);
+        const blockEnd   = timeToMinutes(dayBlock.endTime);
+        if (startMin < blockEnd && endMin > blockStart) {
           throw { status: 409, error: 'Horário bloqueado na agenda' };
         }
       }
 
-      // Verifica horário de funcionamento
-      const bh = await tx.businessHours.findFirst({ where: { dayOfWeek } });
-      if (bh && !bh.isOpen) throw { status: 409, error: 'Barbearia fechada neste dia' };
-      if (bh) {
-        const t = timeToMinutes(time);
-        if (t < timeToMinutes(bh.openTime) || t >= timeToMinutes(bh.closeTime)) {
-          throw { status: 409, error: 'Fora do horário de funcionamento' };
+      // Verifica conflito com outros agendamentos (considera duração de cada um)
+      const existing = await tx.appointment.findMany({
+        where: { date, status: { in: ['confirmed', 'completed'] } },
+        select: { time: true, totalDuration: true },
+      });
+      for (const appt of existing) {
+        const aStart = timeToMinutes(appt.time);
+        const aEnd   = aStart + (appt.totalDuration || 30);
+        if (startMin < aEnd && endMin > aStart) {
+          throw { status: 409, error: 'Horário já ocupado' };
         }
       }
 
-      const service = await tx.service.findUnique({ where: { id: parseInt(serviceId) } });
-      if (!service) throw { status: 404, error: 'Serviço não encontrado' };
+      // Verifica conflito com horários fixos (recorrentes)
+      const recurring = await tx.recurringBlock.findMany({ where: { dayOfWeek }, select: { time: true } });
+      for (const r of recurring) {
+        const rStart = timeToMinutes(r.time);
+        const rEnd   = rStart + 30;
+        if (startMin < rEnd && endMin > rStart) {
+          throw { status: 409, error: 'Horário reservado para cliente fixo' };
+        }
+      }
 
       return tx.appointment.create({
         data: {
           clientName,
           clientPhone,
-          serviceId: parseInt(serviceId),
           date,
           time,
           notes: notes || '',
-          price: service.price,
+          price: totalPrice,
+          totalDuration,
+          services: {
+            create: serviceIds.map((id) => ({ serviceId: Number(id) })),
+          },
         },
-        include: { service: true },
+        include: APPOINTMENT_INCLUDE,
       });
     });
 
@@ -88,11 +115,11 @@ exports.getAppointments = async (req, res) => {
   const { date, status } = req.query;
   try {
     const where = {};
-    if (date) where.date = date;
+    if (date)   where.date   = date;
     if (status) where.status = status;
     const appointments = await prisma.appointment.findMany({
       where,
-      include: { service: true },
+      include: APPOINTMENT_INCLUDE,
       orderBy: [{ date: 'asc' }, { time: 'asc' }],
     });
     res.json(appointments);
@@ -105,14 +132,12 @@ exports.getAppointments = async (req, res) => {
 exports.updateStatus = async (req, res) => {
   const { status } = req.body;
   const allowed = ['confirmed', 'completed', 'no_show', 'cancelled'];
-  if (!allowed.includes(status)) {
-    return res.status(400).json({ error: 'Status inválido' });
-  }
+  if (!allowed.includes(status)) return res.status(400).json({ error: 'Status inválido' });
   try {
     const appointment = await prisma.appointment.update({
       where: { id: parseInt(req.params.id) },
       data: { status },
-      include: { service: true },
+      include: APPOINTMENT_INCLUDE,
     });
     res.json(appointment);
   } catch (e) {
@@ -147,21 +172,13 @@ exports.deleteAppointment = async (req, res) => {
 exports.lookupByPhone = async (req, res) => {
   const { phone } = req.query;
   if (!phone) return res.status(400).json({ error: 'Telefone é obrigatório' });
-
   const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
-  if (!phoneRegex.test(phone)) {
-    return res.status(400).json({ error: 'Telefone inválido' });
-  }
-
+  if (!phoneRegex.test(phone)) return res.status(400).json({ error: 'Telefone inválido' });
   try {
     const today = new Date().toISOString().split('T')[0];
     const appointments = await prisma.appointment.findMany({
-      where: {
-        clientPhone: phone,
-        date: { gte: today },
-        status: { in: ['confirmed'] },
-      },
-      include: { service: true },
+      where: { clientPhone: phone, date: { gte: today }, status: { in: ['confirmed'] } },
+      include: APPOINTMENT_INCLUDE,
       orderBy: [{ date: 'asc' }, { time: 'asc' }],
     });
     res.json(appointments);
@@ -173,48 +190,40 @@ exports.lookupByPhone = async (req, res) => {
 
 exports.getStats = async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const startOfWeek = getStartOfWeek(new Date());
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
+    const today          = new Date().toISOString().split('T')[0];
+    const startOfWeekStr = getStartOfWeek(new Date()).toISOString().split('T')[0];
+    const startOfMonth   = new Date(); startOfMonth.setDate(1);
     const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
-    const startOfWeekStr = startOfWeek.toISOString().split('T')[0];
 
     const [todayAppts, weekAppts, monthAppts, totalClients, topServices] = await Promise.all([
-      prisma.appointment.findMany({ where: { date: today }, include: { service: true } }),
+      prisma.appointment.findMany({ where: { date: today }, include: APPOINTMENT_INCLUDE }),
       prisma.appointment.findMany({ where: { date: { gte: startOfWeekStr, lte: today }, status: { in: ['confirmed', 'completed'] } } }),
       prisma.appointment.findMany({ where: { date: { gte: startOfMonthStr, lte: today }, status: { in: ['confirmed', 'completed'] } } }),
       prisma.appointment.groupBy({ by: ['clientPhone'], _count: { clientPhone: true } }),
-      prisma.appointment.groupBy({
+      prisma.appointmentService.groupBy({
         by: ['serviceId'],
         _count: { serviceId: true },
-        _sum: { price: true },
-        where: { status: { in: ['confirmed', 'completed'] } },
+        where: { appointment: { status: { in: ['confirmed', 'completed'] } } },
         orderBy: { _count: { serviceId: 'desc' } },
         take: 5,
       }),
     ]);
 
-    const todayConfirmed = todayAppts.filter((a) => a.status === 'confirmed').length;
-    const todayCompleted = todayAppts.filter((a) => a.status === 'completed').length;
-    // Usar Math.round para evitar imprecisão de float
-    const todayRevenue = Math.round(todayAppts.filter((a) => a.status === 'completed').reduce((s, a) => s + a.price, 0) * 100) / 100;
-    const weekRevenue = Math.round(weekAppts.filter((a) => a.status === 'completed').reduce((s, a) => s + a.price, 0) * 100) / 100;
-    const monthRevenue = Math.round(monthAppts.filter((a) => a.status === 'completed').reduce((s, a) => s + a.price, 0) * 100) / 100;
+    const sum = (arr) => Math.round(arr.reduce((s, a) => s + a.price, 0) * 100) / 100;
+    const completed = (arr) => arr.filter((a) => a.status === 'completed');
 
-    const servicesData = await prisma.service.findMany({ select: { id: true, name: true } });
-    const serviceMap = Object.fromEntries(servicesData.map((s) => [s.id, s.name]));
+    const servicesData   = await prisma.service.findMany({ select: { id: true, name: true } });
+    const serviceMap     = Object.fromEntries(servicesData.map((s) => [s.id, s.name]));
     const topServicesNamed = topServices.map((s) => ({
       serviceId: s.serviceId,
       name: serviceMap[s.serviceId] || 'Desconhecido',
       count: s._count.serviceId,
-      revenue: Math.round((s._sum.price || 0) * 100) / 100,
     }));
 
     res.json({
-      today: { confirmed: todayConfirmed, completed: todayCompleted, total: todayAppts.length, revenue: todayRevenue },
-      week: { total: weekAppts.length, revenue: weekRevenue },
-      month: { total: monthAppts.length, revenue: monthRevenue },
+      today:   { confirmed: todayAppts.filter((a) => a.status === 'confirmed').length, completed: completed(todayAppts).length, total: todayAppts.length, revenue: sum(completed(todayAppts)) },
+      week:    { total: weekAppts.length,  revenue: sum(completed(weekAppts)) },
+      month:   { total: monthAppts.length, revenue: sum(completed(monthAppts)) },
       totalUniqueClients: totalClients.length,
       topServices: topServicesNamed,
     });
@@ -228,16 +237,10 @@ exports.getClients = async (req, res) => {
   const { search } = req.query;
   try {
     const where = {};
-    if (search) {
-      where.OR = [
-        { clientName: { contains: search } },
-        { clientPhone: { contains: search } },
-      ];
-    }
-
+    if (search) where.OR = [{ clientName: { contains: search } }, { clientPhone: { contains: search } }];
     const appointments = await prisma.appointment.findMany({
       where,
-      include: { service: true },
+      include: APPOINTMENT_INCLUDE,
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });
 
@@ -256,8 +259,7 @@ exports.getClients = async (req, res) => {
       if (!c.lastVisit || appt.date > c.lastVisit) c.lastVisit = appt.date;
     }
 
-    const clients = Object.values(clientMap).sort((a, b) => (b.lastVisit > a.lastVisit ? 1 : -1));
-    res.json(clients);
+    res.json(Object.values(clientMap).sort((a, b) => (b.lastVisit > a.lastVisit ? 1 : -1)));
   } catch (e) {
     console.error('[getClients]', e);
     res.status(500).json({ error: 'Erro ao buscar clientes' });
