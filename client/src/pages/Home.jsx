@@ -134,10 +134,10 @@ export default function Home() {
                 Ryann<br />França
               </h2>
               <p className="text-[#555] leading-relaxed mb-4">
-                O Ryann tem 2 anos de barbearia e coloca dedicação total em cada atendimento. Aprende rápido, trabalha com capricho e trata cada cliente com respeito — do primeiro ao último horário do dia.
+                Com 2 anos de barbearia, o Ryann construiu uma clientela fiel pelo que entrega na cadeira: corte limpo, acabamento preciso e um atendimento que respeita o seu tempo e o seu estilo.
               </p>
               <p className="text-[#444] leading-relaxed mb-8 text-sm">
-                Você agenda pelo site, chega no horário marcado e sai com o corte que pediu. Sem espera, sem enrolação.
+                Cada detalhe importa aqui — do alinhamento à navalha. Você agenda, chega e sai exatamente como queria.
               </p>
 
               <div className="space-y-3 mb-8">
