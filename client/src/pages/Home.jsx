@@ -134,10 +134,10 @@ export default function Home() {
                 Ryann<br />França
               </h2>
               <p className="text-[#555] leading-relaxed mb-4">
-                Com 2 anos de barbearia, o Ryann construiu uma clientela fiel pelo que entrega na cadeira: corte limpo, acabamento preciso e um atendimento que respeita o seu tempo e o seu estilo.
+                Ryann França tem 2 anos na barbearia e uma agenda que não para. Não é à toa — ele trata cada corte com seriedade, cada cliente com atenção e cada detalhe como se fosse o primeiro. É esse cuidado que faz as pessoas voltarem.
               </p>
               <p className="text-[#444] leading-relaxed mb-8 text-sm">
-                Cada detalhe importa aqui — do alinhamento à navalha. Você agenda, chega e sai exatamente como queria.
+                Na Avance você é bem recebido, ouvido e atendido no horário certo. O corte que você pede é o corte que você leva.
               </p>
 
               <div className="space-y-3 mb-8">
