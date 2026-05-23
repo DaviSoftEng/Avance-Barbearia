@@ -87,7 +87,7 @@ export default function Home() {
 
         <div className="relative flex items-end justify-between mt-20 border-t border-[#1A1A1A] pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
           <div className="flex gap-12">
-            {[['500+', 'Clientes atendidos'], ['8 anos', 'De experiência'], ['5.0★', 'Avaliação média']].map(([v, l]) => (
+            {[['100+', 'Clientes atendidos'], ['2 anos', 'De dedicação'], ['5.0★', 'Avaliação média']].map(([v, l]) => (
               <div key={l}>
                 <p className="text-white font-bold text-2xl">{v}</p>
                 <p className="text-[#333] text-xs mt-0.5">{l}</p>
@@ -121,7 +121,7 @@ export default function Home() {
 
                 {/* Badge flutuante */}
                 <div className="absolute -bottom-4 -right-4 lg:right-0 bg-[#111] border border-[#1E1E1E] rounded-2xl px-5 py-3 animate-float" style={{ animationDelay: '1s' }}>
-                  <p className="text-white font-bold text-xl">8+</p>
+                  <p className="text-white font-bold text-xl">2</p>
                   <p className="text-[#444] text-xs">anos de ofício</p>
                 </div>
               </div>
@@ -134,20 +134,17 @@ export default function Home() {
                 Ryann<br />França
               </h2>
               <p className="text-[#555] leading-relaxed mb-4">
-                {/* Substitua pelo texto real do barbeiro */}
-                Barbeiro profissional com mais de 8 anos de experiência, especializado em cortes modernos e técnicas clássicas de barbearia. Cada cliente é tratado com atenção individual, porque estilo é algo pessoal.
+                2 anos na tesoura — e quem já sentou na cadeira sabe o resultado. O Ryann entrou no ofício com vontade de aprender de verdade, e foi exatamente isso que fez: cada corte tratado com atenção, cada cliente com cuidado.
               </p>
               <p className="text-[#444] leading-relaxed mb-8 text-sm">
-                {/* Texto adicional — substitua */}
-                Formado em barbearia e constantemente atualizado com as tendências do mercado, o Ryann combina técnica e criatividade para entregar o melhor resultado sempre.
+                Jovem no tempo de estrada, mas preciso na execução. Se você valoriza um atendimento caprichado e um acabamento limpo, é aqui.
               </p>
 
               <div className="space-y-3 mb-8">
                 {[
-                  'Especialista em cortes modernos e clássicos',
-                  'Técnicas de navalha e acabamento preciso',
-                  'Atendimento personalizado para cada cliente',
-                  /* Adicione mais especialidades aqui */
+                  'Cortes modernos com acabamento preciso',
+                  'Atendimento atencioso e personalizado',
+                  'Sempre atualizado com as tendências',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-3">
                     <span className="text-blue-500 mt-0.5 shrink-0 text-sm">✓</span>
