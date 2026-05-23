@@ -1,19 +1,17 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../db');
 
-const prisma = new PrismaClient();
-
-// Horários de funcionamento
 exports.getBusinessHours = async (req, res) => {
   try {
     const hours = await prisma.businessHours.findMany({ orderBy: { dayOfWeek: 'asc' } });
     res.json(hours);
-  } catch {
+  } catch (e) {
+    console.error('[getBusinessHours]', e);
     res.status(500).json({ error: 'Erro ao buscar horários' });
   }
 };
 
 exports.updateBusinessHours = async (req, res) => {
-  const { hours } = req.body; // Array: [{ dayOfWeek, isOpen, openTime, closeTime }]
+  const { hours } = req.body;
   if (!Array.isArray(hours)) return res.status(400).json({ error: 'Formato inválido' });
   try {
     const updates = await Promise.all(
@@ -26,17 +24,18 @@ exports.updateBusinessHours = async (req, res) => {
       )
     );
     res.json(updates);
-  } catch {
+  } catch (e) {
+    console.error('[updateBusinessHours]', e);
     res.status(500).json({ error: 'Erro ao atualizar horários' });
   }
 };
 
-// Bloqueios de dia
 exports.getDayBlocks = async (req, res) => {
   try {
     const blocks = await prisma.dayBlock.findMany({ orderBy: { date: 'asc' } });
     res.json(blocks);
-  } catch {
+  } catch (e) {
+    console.error('[getDayBlocks]', e);
     res.status(500).json({ error: 'Erro ao buscar bloqueios' });
   }
 };
@@ -49,7 +48,8 @@ exports.createDayBlock = async (req, res) => {
       data: { date, reason: reason || '', startTime: startTime || null, endTime: endTime || null },
     });
     res.status(201).json(block);
-  } catch {
+  } catch (e) {
+    console.error('[createDayBlock]', e);
     res.status(500).json({ error: 'Erro ao criar bloqueio' });
   }
 };
@@ -58,7 +58,8 @@ exports.deleteDayBlock = async (req, res) => {
   try {
     await prisma.dayBlock.delete({ where: { id: parseInt(req.params.id) } });
     res.status(204).send();
-  } catch {
+  } catch (e) {
+    console.error('[deleteDayBlock]', e);
     res.status(500).json({ error: 'Erro ao excluir bloqueio' });
   }
 };

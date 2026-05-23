@@ -1,13 +1,14 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../db');
 
-const prisma = new PrismaClient();
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
 
 function generateSlots(openTime, closeTime, interval = 30) {
   const slots = [];
-  const [startH, startM] = openTime.split(':').map(Number);
-  const [endH, endM] = closeTime.split(':').map(Number);
-  let current = startH * 60 + startM;
-  const end = endH * 60 + endM;
+  let current = timeToMinutes(openTime);
+  const end = timeToMinutes(closeTime);
   while (current < end) {
     const h = Math.floor(current / 60);
     const m = current % 60;
@@ -24,7 +25,6 @@ exports.getAvailableSlots = async (req, res) => {
   try {
     const dayOfWeek = new Date(date + 'T12:00:00').getDay();
 
-    // Verifica horário de funcionamento
     const bh = await prisma.businessHours.findFirst({ where: { dayOfWeek } });
     if (bh && !bh.isOpen) {
       return res.json({ date, available: [], closed: true });
@@ -33,7 +33,6 @@ exports.getAvailableSlots = async (req, res) => {
     const openTime = bh?.openTime || '09:00';
     const closeTime = bh?.closeTime || '19:00';
 
-    // Verifica bloqueio de dia inteiro
     const dayBlock = await prisma.dayBlock.findFirst({ where: { date } });
     if (dayBlock && !dayBlock.startTime) {
       return res.json({ date, available: [], blocked: true, reason: dayBlock.reason });
@@ -48,29 +47,29 @@ exports.getAvailableSlots = async (req, res) => {
     const recurring = await prisma.recurringBlock.findMany({ where: { dayOfWeek }, select: { time: true } });
     recurring.forEach((r) => occupied.add(r.time));
 
-    // Bloqueio parcial de horário
     if (dayBlock?.startTime && dayBlock?.endTime) {
-      const allSlots = generateSlots(openTime, closeTime);
-      allSlots.forEach((s) => {
-        if (s >= dayBlock.startTime && s < dayBlock.endTime) occupied.add(s);
+      const blockStart = timeToMinutes(dayBlock.startTime);
+      const blockEnd = timeToMinutes(dayBlock.endTime);
+      generateSlots(openTime, closeTime).forEach((s) => {
+        const t = timeToMinutes(s);
+        if (t >= blockStart && t < blockEnd) occupied.add(s);
       });
     }
 
-    const allSlots = generateSlots(openTime, closeTime);
-    const available = allSlots.filter((s) => !occupied.has(s));
+    const available = generateSlots(openTime, closeTime).filter((s) => !occupied.has(s));
     res.json({ date, available });
-  } catch {
+  } catch (e) {
+    console.error('[getAvailableSlots]', e);
     res.status(500).json({ error: 'Erro ao buscar horários disponíveis' });
   }
 };
 
 exports.getRecurringBlocks = async (req, res) => {
   try {
-    const blocks = await prisma.recurringBlock.findMany({
-      orderBy: [{ dayOfWeek: 'asc' }, { time: 'asc' }],
-    });
+    const blocks = await prisma.recurringBlock.findMany({ orderBy: [{ dayOfWeek: 'asc' }, { time: 'asc' }] });
     res.json(blocks);
-  } catch {
+  } catch (e) {
+    console.error('[getRecurringBlocks]', e);
     res.status(500).json({ error: 'Erro ao buscar horários fixos' });
   }
 };
@@ -85,7 +84,8 @@ exports.createRecurringBlock = async (req, res) => {
       data: { clientName, dayOfWeek: parseInt(dayOfWeek), time, notes: notes || '' },
     });
     res.status(201).json(block);
-  } catch {
+  } catch (e) {
+    console.error('[createRecurringBlock]', e);
     res.status(500).json({ error: 'Erro ao criar horário fixo' });
   }
 };
@@ -94,7 +94,8 @@ exports.deleteRecurringBlock = async (req, res) => {
   try {
     await prisma.recurringBlock.delete({ where: { id: parseInt(req.params.id) } });
     res.status(204).send();
-  } catch {
+  } catch (e) {
+    console.error('[deleteRecurringBlock]', e);
     res.status(500).json({ error: 'Erro ao excluir horário fixo' });
   }
 };

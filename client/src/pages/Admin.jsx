@@ -94,15 +94,18 @@ function TabDashboard() {
   const [stats, setStats] = useState(null);
   const [todayAppts, setTodayAppts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     Promise.all([getStats(), getAppointments({ date: today })])
       .then(([s, a]) => { setStats(s.data); setTodayAppts(a.data); })
+      .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <Spinner />;
+  if (error) return <div className="card p-6 text-red-400 text-sm">{error}</div>;
 
   const todayStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 

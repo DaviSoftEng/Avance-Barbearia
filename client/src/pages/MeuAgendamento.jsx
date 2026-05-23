@@ -39,11 +39,14 @@ export default function MeuAgendamento() {
   const handleCancel = async (id) => {
     if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
     setCancelling(id);
+    setError('');
     try {
       await cancelAppointmentPublic(id);
+      // Só remove da UI após confirmação do servidor
       setAppointments((prev) => prev.filter((a) => a.id !== id));
-    } catch {
-      setError('Erro ao cancelar. Tente novamente.');
+    } catch (e) {
+      const msg = e.response?.data?.error || 'Erro ao cancelar. Tente novamente.';
+      setError(msg);
     } finally { setCancelling(null); }
   };
 

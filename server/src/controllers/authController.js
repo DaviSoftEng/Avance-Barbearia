@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-const prisma = new PrismaClient();
+const prisma = require('../db');
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
@@ -17,7 +15,8 @@ exports.login = async (req, res) => {
       { expiresIn: '8h' }
     );
     res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
-  } catch {
+  } catch (e) {
+    console.error('[login]', e);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 };

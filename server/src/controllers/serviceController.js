@@ -1,15 +1,11 @@
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../db');
 
 exports.getServices = async (req, res) => {
   try {
-    const services = await prisma.service.findMany({
-      where: { active: true },
-      orderBy: { price: 'asc' },
-    });
+    const services = await prisma.service.findMany({ where: { active: true }, orderBy: { price: 'asc' } });
     res.json(services);
-  } catch {
+  } catch (e) {
+    console.error('[getServices]', e);
     res.status(500).json({ error: 'Erro ao buscar serviços' });
   }
 };
@@ -18,7 +14,8 @@ exports.getAllServices = async (req, res) => {
   try {
     const services = await prisma.service.findMany({ orderBy: { price: 'asc' } });
     res.json(services);
-  } catch {
+  } catch (e) {
+    console.error('[getAllServices]', e);
     res.status(500).json({ error: 'Erro ao buscar serviços' });
   }
 };
@@ -33,7 +30,8 @@ exports.createService = async (req, res) => {
       data: { name, price: parseFloat(price), duration: parseInt(duration), description },
     });
     res.status(201).json(service);
-  } catch {
+  } catch (e) {
+    console.error('[createService]', e);
     res.status(500).json({ error: 'Erro ao criar serviço' });
   }
 };
@@ -48,24 +46,20 @@ exports.updateService = async (req, res) => {
     if (description != null) data.description = description;
     if (active != null) data.active = active;
 
-    const service = await prisma.service.update({
-      where: { id: parseInt(req.params.id) },
-      data,
-    });
+    const service = await prisma.service.update({ where: { id: parseInt(req.params.id) }, data });
     res.json(service);
-  } catch {
+  } catch (e) {
+    console.error('[updateService]', e);
     res.status(500).json({ error: 'Erro ao atualizar serviço' });
   }
 };
 
 exports.deleteService = async (req, res) => {
   try {
-    await prisma.service.update({
-      where: { id: parseInt(req.params.id) },
-      data: { active: false },
-    });
+    await prisma.service.update({ where: { id: parseInt(req.params.id) }, data: { active: false } });
     res.status(204).send();
-  } catch {
+  } catch (e) {
+    console.error('[deleteService]', e);
     res.status(500).json({ error: 'Erro ao desativar serviço' });
   }
 };
