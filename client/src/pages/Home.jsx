@@ -492,7 +492,7 @@ function ServiceDetailModal({ service, onClose }) {
             <span className="text-blue-400 font-bold text-2xl">{fmtCurrency(service.price)}</span>
             <span className="text-[#888] text-sm flex items-center gap-1.5"><ClockIcon className="w-4 h-4" /> {service.duration} min</span>
           </div>
-          <Link to="/agendar" className="btn-primary w-full py-3 text-sm text-center block mt-6">
+          <Link to={`/agendar?servico=${service.id}`} className="btn-primary w-full py-3 text-sm text-center block mt-6">
             Agendar este serviço
           </Link>
         </div>

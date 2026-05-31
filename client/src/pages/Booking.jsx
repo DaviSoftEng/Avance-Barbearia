@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getServices, getAvailableSlots, createAppointment, getBusinessHours, getDayBlocks } from '../services/api';
 
 const STEPS = ['Serviços', 'Data & Horário', 'Dados', 'Confirmar'];
@@ -13,6 +14,7 @@ function toISO(d) {
 }
 
 export default function Booking() {
+  const [searchParams]                = useSearchParams();
   const [step, setStep]               = useState(0);
   const [services, setServices]       = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -36,7 +38,15 @@ export default function Booking() {
   const totalDuration = selectedServices.reduce((s, sv) => s + sv.duration, 0);
 
   useEffect(() => {
-    getServices().then((r) => setServices(r.data)).catch(() => {});
+    getServices().then((r) => {
+      setServices(r.data);
+      // Pré-seleciona o serviço vindo da home (?servico=ID)
+      const preId = searchParams.get('servico');
+      if (preId) {
+        const found = r.data.find((s) => String(s.id) === preId);
+        if (found) setSelectedServices([found]);
+      }
+    }).catch(() => {});
     Promise.all([getBusinessHours(), getDayBlocks()])
       .then(([h, b]) => { setBusinessHours(h.data); setDayBlocks(b.data); })
       .catch(() => {});
