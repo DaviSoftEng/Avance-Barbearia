@@ -99,23 +99,18 @@ export default function Home() {
 
             {/* Foto */}
             <Reveal>
-              <div className="relative">
-                {/* Troque o src abaixo pela foto real do Ryann */}
-                <div className="relative aspect-[3/4] max-w-sm mx-auto lg:mx-0 rounded-2xl overflow-hidden bg-[#111111] border border-[#1E1E1E]">
-                  <img
-                    src="/barbeiro.png"
-                    alt="Ryann França"
-                    className="w-full h-full object-cover object-top"
-                  />
+              <div className="relative aspect-[3/4] max-w-sm mx-auto lg:mx-0 rounded-2xl overflow-hidden bg-[#111111] border border-[#1E1E1E]">
+                <img
+                  src="/barbeiro.png"
+                  alt="Ryann França"
+                  className="w-full h-full object-cover object-top"
+                />
 
-                  {/* Overlay gradiente na foto */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/60 via-transparent to-transparent pointer-events-none" />
-                </div>
-
-                {/* Assinatura */}
-                <div className="absolute -bottom-4 -right-4 lg:right-0 bg-[#111] border border-[#1E1E1E] rounded-2xl px-5 py-3">
-                  <p className="text-white font-semibold text-sm">Ryann França</p>
-                  <p className="text-[#444] text-xs">Barbeiro · Avance</p>
+                {/* Degradê + assinatura sobre a foto */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/20 to-transparent pointer-events-none" />
+                <div className="absolute bottom-5 left-5">
+                  <p className="text-white font-semibold">Ryann França</p>
+                  <p className="text-blue-400 text-xs tracking-wide">Barbeiro · Avance</p>
                 </div>
               </div>
             </Reveal>
