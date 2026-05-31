@@ -51,51 +51,9 @@
   .reveal-delay-4 { transition-delay: 0.4s; }
 }
 
-@keyframes breathe {
-  0%, 100% { opacity: 0.07; transform: scale(1); }
-  50%       { opacity: 0.14; transform: scale(1.08); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
-}
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-}
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
-
-.animate-breathe { animation: breathe 5s ease-in-out infinite; }
-.animate-float   { animation: float 6s ease-in-out infinite; }
-.animate-blink   { animation: blink 1.1s step-end infinite; }
-
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-.shimmer-text {
-  background: linear-gradient(
-    90deg,
-    #3b82f6 0%,
-    #93c5fd 40%,
-    #3b82f6 60%,
-    #1d4ed8 100%
-  );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shimmer 4s linear infinite;
-}
-
-/* Esconde placeholder quando imagem carrega */
-img:not([src=""]):not([src$="ryann.jpg"]) ~ .barber-photo-placeholder,
-img[src$="ryann.jpg"]:not([style*="display: none"]) ~ .barber-photo-placeholder {
-  display: none;
 }
 
 @layer components {

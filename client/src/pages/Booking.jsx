@@ -107,7 +107,11 @@ export default function Booking() {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6">
         <div className="w-full max-w-md">
-          <p className="text-blue-500 text-4xl font-bold mb-2">✓</p>
+          <div className="w-12 h-12 rounded-full bg-blue-600/15 border border-blue-600/30 flex items-center justify-center mb-4">
+            <svg className="w-6 h-6 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
           <h2 className="text-3xl font-bold text-white mb-1">Agendado.</h2>
           <p className="text-[#555] text-sm mb-8">Te esperamos no horário marcado.</p>
           <div className="card p-6 space-y-4 mb-6">
@@ -252,7 +256,10 @@ export default function Booking() {
               <div className="card p-4">
                 {!selectedDate ? (
                   <div className="h-full flex flex-col items-center justify-center text-center py-10">
-                    <p className="text-[#2a2a2a] text-4xl mb-3">📅</p>
+                    <svg className="w-9 h-9 mb-3 text-[#2a2a2a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+                      <path strokeLinecap="round" d="M3 9h18M8 2.5v4M16 2.5v4" />
+                    </svg>
                     <p className="text-[#444] text-sm">Selecione uma data no calendário para ver os horários disponíveis</p>
                   </div>
                 ) : slotsLoading ? (

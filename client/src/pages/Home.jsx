@@ -43,22 +43,16 @@ function SectionDivider() {
 export default function Home() {
   const [services, setServices]     = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
-  const [cursor, setCursor]         = useState(true);
 
   useEffect(() => {
     getServices().then((r) => setServices(r.data)).catch(() => {});
     getBusinessHours().then((r) => setBusinessHours(r.data)).catch(() => {});
-    const t = setInterval(() => setCursor((c) => !c), 600);
-    return () => clearInterval(t);
   }, []);
 
   return (
     <>
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col justify-between px-6 pt-28 pb-16 max-w-6xl mx-auto overflow-hidden">
-        <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-blue-600/10 blur-[120px] animate-breathe" />
-        <div className="pointer-events-none absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-blue-800/5 blur-[80px] animate-breathe" style={{ animationDelay: '2.5s' }} />
-
+      <section className="relative min-h-screen flex flex-col justify-between px-6 pt-28 pb-16 max-w-6xl mx-auto">
         <div className="relative">
           <p className="section-label mb-8" style={{ animation: 'fadeInUp 0.7s ease 0.1s both' }}>
             Barbearia Avance · Ryann França
@@ -68,8 +62,7 @@ export default function Home() {
             style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both' }}
           >
             Estilo,<br />Autoestima &<br />
-            <span className="shimmer-text">Confiança!</span>
-            <span className={`inline-block w-[4px] h-[0.85em] bg-blue-500 ml-2 align-middle rounded-sm transition-opacity ${cursor ? 'opacity-100' : 'opacity-0'}`} />
+            <span className="text-blue-500">Confiança.</span>
           </h1>
           <p className="text-[#555] text-lg mt-10 max-w-md leading-relaxed" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s both' }}>
             Agendamento online para quem valoriza o próprio tempo. Escolha o horário, apareça, saia impecável.
@@ -86,15 +79,15 @@ export default function Home() {
         </div>
 
         <div className="relative flex items-end justify-between mt-20 border-t border-[#1A1A1A] pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
-          <div className="flex gap-12">
-            {[['100+', 'Clientes atendidos'], ['2 anos', 'De dedicação'], ['5.0★', 'Avaliação média']].map(([v, l]) => (
+          <div className="flex gap-10 sm:gap-12">
+            {[['Heliópolis', 'Belford Roxo · RJ'], ['Seg a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
               <div key={l}>
-                <p className="text-white font-bold text-2xl">{v}</p>
+                <p className="text-white font-bold text-lg sm:text-2xl">{v}</p>
                 <p className="text-[#333] text-xs mt-0.5">{l}</p>
               </div>
             ))}
           </div>
-          <img src="/logo.jpeg" alt="Avance" className="h-14 w-14 rounded-full object-cover opacity-40 animate-float" />
+          <img src="/logo.jpeg" alt="Avance" className="h-14 w-14 rounded-full object-cover opacity-40" />
         </div>
       </section>
 
@@ -119,10 +112,10 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/60 via-transparent to-transparent pointer-events-none" />
                 </div>
 
-                {/* Badge flutuante */}
-                <div className="absolute -bottom-4 -right-4 lg:right-0 bg-[#111] border border-[#1E1E1E] rounded-2xl px-5 py-3 animate-float" style={{ animationDelay: '1s' }}>
-                  <p className="text-white font-bold text-xl">2</p>
-                  <p className="text-[#444] text-xs">anos de ofício</p>
+                {/* Assinatura */}
+                <div className="absolute -bottom-4 -right-4 lg:right-0 bg-[#111] border border-[#1E1E1E] rounded-2xl px-5 py-3">
+                  <p className="text-white font-semibold text-sm">Ryann França</p>
+                  <p className="text-[#444] text-xs">Barbeiro · Avance</p>
                 </div>
               </div>
             </Reveal>
@@ -147,7 +140,9 @@ export default function Home() {
                   'Pontual e atencioso com cada cliente',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-3">
-                    <span className="text-blue-500 mt-0.5 shrink-0 text-sm">✓</span>
+                    <svg className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 10.5l3.5 3.5L15 6" />
+                    </svg>
                     <span className="text-[#666] text-sm">{item}</span>
                   </div>
                 ))}
@@ -298,7 +293,11 @@ export default function Home() {
                   rel="noreferrer"
                   className="flex items-center justify-center gap-2 w-full py-2.5 text-sm border border-[#1E1E1E] text-[#555] rounded-xl hover:text-white hover:border-[#333] transition-all"
                 >
-                  📍 Abrir no Google Maps
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-7-6.5-7-11a7 7 0 1114 0c0 4.5-7 11-7 11z" />
+                    <circle cx="12" cy="10" r="2.5" />
+                  </svg>
+                  Abrir no Google Maps
                 </a>
               </div>
             </Reveal>
