@@ -18,6 +18,16 @@ function fmtCurrency(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
 }
 
+// Dados de contato — preencha whatsapp e email quando tiver
+const CONTACT = {
+  whatsapp: '',                 // só números com DDI/DDD, ex: '5521999999999'
+  email: '',                    // ex: 'contato@barbeariaavance.com'
+  instagram: 'barbearia.avance',
+  addressLine1: 'R. Tupinambás, 16 — Heliópolis',
+  addressLine2: 'Belford Roxo · RJ, 26140-330',
+  mapsUrl: 'https://maps.google.com/?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ',
+};
+
 // Agrupa dias consecutivos com mesmo horário em faixas (ex: Seg–Sex)
 function groupHours(hours) {
   if (!hours?.length) return [];
@@ -333,18 +343,88 @@ export default function Home() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-[#141414]">
-        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="Avance" className="h-6 w-6 rounded-full object-cover opacity-60" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <div>
-              <span className="text-[#2a2a2a] text-sm">
-                Barbearia <span className="text-blue-600">Avance</span> — Ryann França
-              </span>
-              <p className="text-[#1e1e1e] text-xs">R. Tupinambás, 16 · Heliópolis · Belford Roxo — RJ</p>
+      <footer className="border-t border-[#141414] bg-[#080808]">
+        <div className="max-w-6xl mx-auto px-6 py-16">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
+
+            {/* Marca */}
+            <div className="col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2.5 mb-4">
+                <img src="/logo.jpeg" alt="Avance" className="h-8 w-8 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <span className="text-white font-semibold">Barbearia <span className="text-blue-500">Avance</span></span>
+              </div>
+              <p className="text-[#555] text-sm leading-relaxed max-w-xs">
+                Estilo, autoestima e confiança em cada corte. Agende online e saia impecável.
+              </p>
             </div>
+
+            {/* Links rápidos */}
+            <div>
+              <h4 className="text-white text-sm font-semibold mb-4">Navegação</h4>
+              <ul className="space-y-2.5 text-sm">
+                <li><a href="#servicos" className="text-[#555] hover:text-white transition-colors">Serviços</a></li>
+                <li><a href="#sobre" className="text-[#555] hover:text-white transition-colors">Sobre</a></li>
+                <li><a href="#localizacao" className="text-[#555] hover:text-white transition-colors">Localização</a></li>
+                <li><Link to="/agendar" className="text-[#555] hover:text-white transition-colors">Agendamento</Link></li>
+                <li><Link to="/meu-agendamento" className="text-[#555] hover:text-white transition-colors">Meu horário</Link></li>
+              </ul>
+            </div>
+
+            {/* Contato */}
+            <div>
+              <h4 className="text-white text-sm font-semibold mb-4">Contato</h4>
+              <ul className="space-y-3 text-sm">
+                <li>
+                  <a href={CONTACT.mapsUrl} target="_blank" rel="noreferrer" className="flex items-start gap-2.5 text-[#555] hover:text-white transition-colors">
+                    <svg className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-7-6.5-7-11a7 7 0 1114 0c0 4.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                    <span>{CONTACT.addressLine1}<br />{CONTACT.addressLine2}</span>
+                  </a>
+                </li>
+                {CONTACT.whatsapp && (
+                  <li>
+                    <a href={`https://wa.me/${CONTACT.whatsapp}`} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 text-[#555] hover:text-white transition-colors">
+                      <svg className="w-4 h-4 shrink-0 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.578-.985z" /></svg>
+                      WhatsApp
+                    </a>
+                  </li>
+                )}
+                {CONTACT.email && (
+                  <li>
+                    <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-2.5 text-[#555] hover:text-white transition-colors break-all">
+                      <svg className="w-4 h-4 shrink-0 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M4 7l8 6 8-6" /></svg>
+                      {CONTACT.email}
+                    </a>
+                  </li>
+                )}
+                <li>
+                  <a href={`https://instagram.com/${CONTACT.instagram}`} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 text-[#555] hover:text-white transition-colors">
+                    <svg className="w-4 h-4 shrink-0 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="3.5" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>
+                    @{CONTACT.instagram}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Horário */}
+            <div>
+              <h4 className="text-white text-sm font-semibold mb-4">Horário</h4>
+              <ul className="space-y-2 text-sm">
+                {groupHours(businessHours).map(({ days, hours, open }) => (
+                  <li key={days} className="flex flex-col">
+                    <span className="text-[#777]">{days}</span>
+                    <span className={open ? 'text-[#aaa]' : 'text-[#3a3a3a]'}>{hours}</span>
+                  </li>
+                ))}
+                {businessHours.length === 0 && <li className="text-[#333]">—</li>}
+              </ul>
+            </div>
+
           </div>
-          <span className="text-[#222] text-xs">© {new Date().getFullYear()} Todos os direitos reservados.</span>
+
+          <div className="border-t border-[#141414] mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-[#333] text-xs">© {new Date().getFullYear()} Barbearia Avance · Ryann França — Todos os direitos reservados.</span>
+            <span className="text-[#222] text-xs">Heliópolis · Belford Roxo — RJ</span>
+          </div>
         </div>
       </footer>
 
