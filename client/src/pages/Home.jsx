@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getServices, getBusinessHours } from '../services/api';
 import { useInView } from '../hooks/useInView';
@@ -408,62 +408,31 @@ function ServiceCard({ s, onOpen }) {
   );
 }
 
-/* ─── Carrossel auto-rodando ─────────────────────────────────────────────── */
+/* ─── Carrossel contínuo (esteira girando em loop) ───────────────────────── */
 function ServicesCarousel({ services, onOpen }) {
-  const scrollRef = useRef(null);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (paused || services.length <= 1) return;
-    const id = setInterval(() => {
-      const el = scrollRef.current;
-      if (!el) return;
-      const card = el.firstElementChild;
-      const step = card ? card.offsetWidth + 16 : 300;
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 12;
-      if (atEnd) el.scrollTo({ left: 0, behavior: 'smooth' });
-      else el.scrollBy({ left: step, behavior: 'smooth' });
-    }, 3500);
-    return () => clearInterval(id);
-  }, [paused, services]);
-
-  const move = (dir) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const card = el.firstElementChild;
-    const step = card ? card.offsetWidth + 16 : 300;
-    el.scrollBy({ left: dir * step, behavior: 'smooth' });
-  };
+  // Duplica a lista para o loop ser perfeito (translada exatamente 50%)
+  const loop = [...services, ...services];
+  // Velocidade constante: ~6s por card
+  const duration = Math.max(services.length * 6, 18);
 
   return (
-    <div
-      className="relative group/car"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <div ref={scrollRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
-        {services.map((s) => (
-          <div key={s.id} className="snap-start shrink-0 w-[58%] sm:w-[300px] lg:w-[280px]">
+    <div className="group relative overflow-hidden">
+      {/* Fades nas bordas para o efeito de esteira */}
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-16 z-10 bg-gradient-to-r from-[#0A0A0A] to-transparent" />
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-16 z-10 bg-gradient-to-l from-[#0A0A0A] to-transparent" />
+
+      <div
+        className="flex w-max animate-marquee group-hover:[animation-play-state:paused]"
+        style={{ animationDuration: `${duration}s` }}
+      >
+        {loop.map((s, i) => (
+          <div key={`${s.id}-${i}`} className="shrink-0 w-[58%] sm:w-[280px] lg:w-[260px] mr-4">
             <ServiceCard s={s} onOpen={onOpen} />
           </div>
         ))}
       </div>
 
-      {/* Setas */}
-      <button
-        onClick={() => move(-1)}
-        aria-label="Anterior"
-        className="absolute -left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#111] border border-[#1E1E1E] text-white flex items-center justify-center hover:bg-[#1a1a1a] transition-all opacity-0 group-hover/car:opacity-100 disabled:opacity-0"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 5l-5 5 5 5" /></svg>
-      </button>
-      <button
-        onClick={() => move(1)}
-        aria-label="Próximo"
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#111] border border-[#1E1E1E] text-white flex items-center justify-center hover:bg-[#1a1a1a] transition-all opacity-0 group-hover/car:opacity-100"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" /></svg>
-      </button>
+      <p className="text-center text-[#333] text-xs mt-4">Passe o mouse para pausar · toque em um serviço para ver detalhes</p>
     </div>
   );
 }

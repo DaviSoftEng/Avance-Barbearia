@@ -59,6 +59,17 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Carrossel contínuo (marquee) — translada metade da pista p/ loop perfeito */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation-name: marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
 @layer components {
   .card {
     @apply bg-[#111111] border border-[#1E1E1E] rounded-2xl;
