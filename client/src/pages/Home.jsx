@@ -467,38 +467,40 @@ function ServiceCard({ s, onOpen }) {
   return (
     <button
       onClick={() => onOpen(s)}
-      className="group relative w-full text-left rounded-2xl overflow-hidden border border-[#1A1A1A] bg-[#0e0e0e] aspect-[4/5]"
+      className="group/card relative w-full text-left rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:border-blue-500/40 hover:bg-white/[0.06] hover:-translate-y-1 transition-all duration-300"
     >
-      {/* Placeholder base */}
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
-        <ScissorsIcon className="w-10 h-10 text-[#262626]" />
+      {/* Foto */}
+      <div className="relative aspect-[4/3] overflow-hidden">
+        {/* Placeholder base */}
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
+          <ScissorsIcon className="w-10 h-10 text-[#262626]" />
+        </div>
+        {s.image && (
+          <img
+            src={s.image}
+            alt={s.name}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        )}
+        {/* Funde a base da foto com o painel de vidro */}
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
-      {/* Foto (se houver) */}
-      {s.image && (
-        <img
-          src={s.image}
-          alt={s.name}
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-      )}
-      {/* Degradê */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/20 to-transparent" />
-      {/* Info */}
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <p className="text-white font-semibold leading-tight">{s.name}</p>
+
+      {/* Painel de vidro com infos */}
+      <div className="relative px-4 py-3.5 border-t border-white/10 bg-white/[0.02] backdrop-blur-md">
+        <p className="text-white font-semibold leading-snug line-clamp-2 min-h-[2.6em]">{s.name}</p>
         <div className="flex items-center gap-3 mt-1.5">
           {s.price > 0
             ? <span className="text-blue-400 font-bold">{fmtCurrency(s.price)}</span>
             : <span className="text-blue-400 font-semibold text-sm">{s.description || 'Consultar'}</span>}
-          <span className="text-[#999] text-xs flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" /> {s.duration} min</span>
+          <span className="text-[#888] text-xs flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" /> {s.duration} min</span>
         </div>
       </div>
-      {/* Hint ao passar o mouse */}
-      <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" /></svg>
-      </span>
+
+      {/* Brilho premium no hover */}
+      <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5 group-hover/card:ring-blue-500/25 transition-all duration-300" />
     </button>
   );
 }
