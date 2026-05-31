@@ -489,7 +489,9 @@ function ServiceCard({ s, onOpen }) {
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <p className="text-white font-semibold leading-tight">{s.name}</p>
         <div className="flex items-center gap-3 mt-1.5">
-          <span className="text-blue-400 font-bold">{fmtCurrency(s.price)}</span>
+          {s.price > 0
+            ? <span className="text-blue-400 font-bold">{fmtCurrency(s.price)}</span>
+            : <span className="text-blue-400 font-semibold text-sm">{s.description || 'Consultar'}</span>}
           <span className="text-[#999] text-xs flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" /> {s.duration} min</span>
         </div>
       </div>
@@ -569,7 +571,9 @@ function ServiceDetailModal({ service, onClose }) {
           <h3 className="text-white font-bold text-xl">{service.name}</h3>
           <p className="text-[#666] text-sm mt-2 leading-relaxed">{service.description}</p>
           <div className="flex items-center gap-5 mt-4">
-            <span className="text-blue-400 font-bold text-2xl">{fmtCurrency(service.price)}</span>
+            {service.price > 0
+              ? <span className="text-blue-400 font-bold text-2xl">{fmtCurrency(service.price)}</span>
+              : <span className="text-blue-400 font-semibold text-lg">A partir de 5 anos</span>}
             <span className="text-[#888] text-sm flex items-center gap-1.5"><ClockIcon className="w-4 h-4" /> {service.duration} min</span>
           </div>
           <Link to={`/agendar?servico=${service.id}`} className="btn-primary w-full py-3 text-sm text-center block mt-6">
