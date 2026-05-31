@@ -1,5 +1,12 @@
 const prisma = require('../db');
 
+const TZ = 'America/Sao_Paulo';
+
+// Data de "hoje" no fuso do Brasil (YYYY-MM-DD), independente do fuso do servidor
+function brToday() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+}
+
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
@@ -175,7 +182,7 @@ exports.lookupByPhone = async (req, res) => {
   const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
   if (!phoneRegex.test(phone)) return res.status(400).json({ error: 'Telefone inválido' });
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = brToday();
     const appointments = await prisma.appointment.findMany({
       where: { clientPhone: phone, date: { gte: today }, status: { in: ['confirmed'] } },
       include: APPOINTMENT_INCLUDE,
@@ -190,10 +197,12 @@ exports.lookupByPhone = async (req, res) => {
 
 exports.getStats = async (req, res) => {
   try {
-    const today          = new Date().toISOString().split('T')[0];
-    const startOfWeekStr = getStartOfWeek(new Date()).toISOString().split('T')[0];
-    const startOfMonth   = new Date(); startOfMonth.setDate(1);
-    const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+    const today  = brToday();
+    const anchor = new Date(today + 'T00:00:00Z'); // âncora UTC do dia BR, p/ aritmética estável
+    const sow    = new Date(anchor); sow.setUTCDate(anchor.getUTCDate() - anchor.getUTCDay());
+    const startOfWeekStr  = sow.toISOString().slice(0, 10);
+    const som    = new Date(anchor); som.setUTCDate(1);
+    const startOfMonthStr = som.toISOString().slice(0, 10);
 
     const [todayAppts, weekAppts, monthAppts, totalClients, topServices] = await Promise.all([
       prisma.appointment.findMany({ where: { date: today }, include: APPOINTMENT_INCLUDE }),
@@ -364,10 +373,3 @@ exports.cancelAppointmentPublic = async (req, res) => {
     res.status(500).json({ error: 'Erro ao cancelar agendamento' });
   }
 };
-
-function getStartOfWeek(date) {
-  const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay());
-  d.setHours(0, 0, 0, 0);
-  return d;
-}

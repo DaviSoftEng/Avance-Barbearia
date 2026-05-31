@@ -8,6 +8,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Sessão expirada (401 com token existente) → desloga e manda pro login
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const url = err.config?.url || '';
+    const isLogin = url.includes('/auth/login');
+    if (err.response?.status === 401 && localStorage.getItem('token') && !isLogin) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+
 // Public
 export const getServices = () => api.get('/services');
 export const getAvailableSlots = (date, duration) => api.get(`/slots/available?date=${date}${duration ? `&duration=${duration}` : ''}`);

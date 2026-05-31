@@ -27,6 +27,14 @@ function fmt(date) {
 function fmtCurrency(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
 }
+// Data local em YYYY-MM-DD (sem conversão para UTC)
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// "Hoje" no fuso do Brasil, independente do fuso do navegador
+function todayBR() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+}
 function getWeekDates(base) {
   const d = new Date(base + 'T12:00:00');
   const day = d.getDay();
@@ -34,7 +42,7 @@ function getWeekDates(base) {
   return Array.from({ length: 7 }, (_, i) => {
     const dd = new Date(d);
     dd.setDate(d.getDate() + i);
-    return dd.toISOString().split('T')[0];
+    return ymd(dd);
   });
 }
 
@@ -101,7 +109,7 @@ function TabDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayBR();
     Promise.all([getStats(), getAppointments({ date: today })])
       .then(([s, a]) => { setStats(s.data); setTodayAppts(a.data); })
       .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'))
@@ -180,7 +188,7 @@ function TabDashboard() {
 
 /* ─────────────────── AGENDA ─────────────────── */
 function TabAgenda() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayBR();
   const [weekBase, setWeekBase] = useState(today);
   const [weekDates, setWeekDates] = useState(getWeekDates(today));
   const [appointments, setAppointments] = useState([]);
@@ -199,7 +207,7 @@ function TabAgenda() {
   const shiftWeek = (dir) => {
     const d = new Date(weekBase + 'T12:00:00');
     d.setDate(d.getDate() + dir * 7);
-    setWeekBase(d.toISOString().split('T')[0]);
+    setWeekBase(ymd(d));
   };
 
   const apptsByDate = {};
