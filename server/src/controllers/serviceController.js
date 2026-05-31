@@ -21,13 +21,13 @@ exports.getAllServices = async (req, res) => {
 };
 
 exports.createService = async (req, res) => {
-  const { name, price, duration, description } = req.body;
+  const { name, price, duration, description, image } = req.body;
   if (!name || price == null || !duration || !description) {
     return res.status(400).json({ error: 'Dados incompletos' });
   }
   try {
     const service = await prisma.service.create({
-      data: { name, price: parseFloat(price), duration: parseInt(duration), description },
+      data: { name, price: parseFloat(price), duration: parseInt(duration), description, image: image || '' },
     });
     res.status(201).json(service);
   } catch (e) {
@@ -37,7 +37,7 @@ exports.createService = async (req, res) => {
 };
 
 exports.updateService = async (req, res) => {
-  const { name, price, duration, description, active } = req.body;
+  const { name, price, duration, description, active, image } = req.body;
   try {
     const data = {};
     if (name != null) data.name = name;
@@ -45,6 +45,7 @@ exports.updateService = async (req, res) => {
     if (duration != null) data.duration = parseInt(duration);
     if (description != null) data.description = description;
     if (active != null) data.active = active;
+    if (image != null) data.image = image;
 
     const service = await prisma.service.update({ where: { id: parseInt(req.params.id) }, data });
     res.json(service);

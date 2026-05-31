@@ -21,6 +21,7 @@ model Service {
   price        Float
   duration     Int
   description  String
+  image        String               @default("")
   active       Boolean              @default(true)
   appointments AppointmentService[]
 }

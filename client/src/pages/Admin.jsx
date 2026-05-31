@@ -448,7 +448,7 @@ function TabClientes() {
 function TabServicos() {
   const [services, setServices] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', price: '', duration: '', description: '' });
+  const [form, setForm] = useState({ name: '', price: '', duration: '', description: '', image: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -458,8 +458,8 @@ function TabServicos() {
   };
   useEffect(() => { load(); }, []);
 
-  const openNew = () => { setForm({ name: '', price: '', duration: '', description: '' }); setEditing('new'); };
-  const openEdit = (s) => { setForm({ name: s.name, price: s.price, duration: s.duration, description: s.description }); setEditing(s); };
+  const openNew = () => { setForm({ name: '', price: '', duration: '', description: '', image: '' }); setEditing('new'); };
+  const openEdit = (s) => { setForm({ name: s.name, price: s.price, duration: s.duration, description: s.description, image: s.image || '' }); setEditing(s); };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -501,6 +501,16 @@ function TabServicos() {
               <label className="text-[#444] text-xs block mb-1">Descrição</label>
               <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Descrição breve do serviço" className="input-field" required />
             </div>
+            <div className="sm:col-span-2">
+              <label className="text-[#444] text-xs block mb-1">Foto do serviço (opcional)</label>
+              <div className="flex gap-3 items-start">
+                <input value={form.image} onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))} placeholder="URL da imagem ou /cortes/corte.jpg" className="input-field flex-1" />
+                {form.image && (
+                  <img src={form.image} alt="" className="w-14 h-14 rounded-lg object-cover border border-[#1E1E1E] shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                )}
+              </div>
+              <p className="text-[#333] text-[11px] mt-1">Cole o link de uma foto, ou coloque o arquivo em <span className="text-[#555]">client/public/cortes/</span> e use <span className="text-[#555]">/cortes/nome.jpg</span></p>
+            </div>
             <div className="sm:col-span-2 flex gap-3">
               <button type="submit" disabled={saving} className="btn-primary px-5 py-2 text-sm disabled:opacity-50">
                 {saving ? 'Salvando...' : 'Salvar'}
@@ -517,15 +527,21 @@ function TabServicos() {
         <div className="space-y-3">
           {services.map((s) => (
             <div key={s.id} className={`card p-4 flex items-center justify-between transition-all ${!s.active ? 'opacity-40' : ''}`}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-white font-medium">{s.name}</p>
-                  {!s.active && <span className="text-[#444] text-[10px] border border-[#222] px-1.5 py-0.5 rounded">inativo</span>}
-                </div>
-                <p className="text-[#444] text-sm">{s.description}</p>
-                <div className="flex gap-4 mt-1">
-                  <span className="text-blue-500 text-sm font-medium">{fmtCurrency(s.price)}</span>
-                  <span className="text-[#444] text-sm">{s.duration} min</span>
+              <div className="flex items-center gap-4 min-w-0">
+                {s.image
+                  ? <img src={s.image} alt="" className="w-14 h-14 rounded-lg object-cover border border-[#1E1E1E] shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  : <div className="w-14 h-14 rounded-lg bg-[#161616] border border-[#1E1E1E] flex items-center justify-center shrink-0 text-[#333] text-xs">sem foto</div>
+                }
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-medium truncate">{s.name}</p>
+                    {!s.active && <span className="text-[#444] text-[10px] border border-[#222] px-1.5 py-0.5 rounded shrink-0">inativo</span>}
+                  </div>
+                  <p className="text-[#444] text-sm truncate">{s.description}</p>
+                  <div className="flex gap-4 mt-1">
+                    <span className="text-blue-500 text-sm font-medium">{fmtCurrency(s.price)}</span>
+                    <span className="text-[#444] text-sm">{s.duration} min</span>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2 ml-4 shrink-0">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getServices, getBusinessHours } from '../services/api';
 import { useInView } from '../hooks/useInView';
@@ -43,6 +43,8 @@ function SectionDivider() {
 export default function Home() {
   const [services, setServices]     = useState([]);
   const [businessHours, setBusinessHours] = useState([]);
+  const [galleryOpen, setGalleryOpen]     = useState(false);
+  const [detailService, setDetailService] = useState(null);
 
   useEffect(() => {
     getServices().then((r) => setServices(r.data)).catch(() => {});
@@ -156,48 +158,37 @@ export default function Home() {
       <SectionDivider />
       <section id="servicos">
         <div className="max-w-6xl mx-auto px-6 py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+          <Reveal className="text-center max-w-xl mx-auto mb-12">
+            <p className="section-label mb-4">O que fazemos</p>
+            <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
+              Serviços que <span className="text-blue-500">valorizam você</span>
+            </h2>
+            <p className="text-[#555] mt-5 leading-relaxed">
+              Do corte clássico ao degradê moderno. Escolha, agende e apareça.
+            </p>
+          </Reveal>
 
-            <Reveal>
-              <p className="section-label mb-5">O que fazemos</p>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
-                Serviços e<br />preços
-              </h2>
-              <p className="text-[#444] mt-5 leading-relaxed text-sm">
-                Cada serviço pensado para valorizar o seu estilo. Sem pressa, sem descuido.
-              </p>
-              <Link to="/agendar" className="btn-primary inline-block mt-8 px-6 py-3 text-sm">
-                Reservar horário
-              </Link>
-            </Reveal>
+          <Reveal delay="reveal-delay-1">
+            {services.length > 0 ? (
+              <ServicesCarousel services={services} onOpen={setDetailService} />
+            ) : (
+              <p className="text-[#222] text-center">Carregando...</p>
+            )}
+          </Reveal>
 
-            <Reveal delay="reveal-delay-1">
-              {services.length > 0 ? (
-                <div>
-                  {services.map((s, i) => (
-                    <div
-                      key={s.id}
-                      className="relative flex items-center justify-between py-5 border-b border-[#1A1A1A] group cursor-default overflow-hidden"
-                      style={{ transitionDelay: `${i * 40}ms` }}
-                    >
-                      <span className="absolute left-0 top-2 bottom-2 w-[2px] bg-blue-600 origin-top scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-full" />
-                      <span className="absolute inset-0 bg-blue-600/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-300 -mx-3 rounded-xl" />
-                      <div className="relative pl-0 group-hover:pl-4 transition-all duration-300">
-                        <p className="text-white font-medium text-sm group-hover:text-blue-300 transition-colors duration-300">{s.name}</p>
-                        <p className="text-[#333] text-xs mt-0.5 group-hover:text-[#555] transition-colors duration-300">{s.duration} min</p>
-                      </div>
-                      <p className="relative text-blue-500 font-bold text-lg group-hover:text-blue-400 transition-colors duration-300">
-                        R${s.price.toFixed(2)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[#222]">Carregando...</p>
-              )}
-            </Reveal>
-
-          </div>
+          {services.length > 0 && (
+            <div className="text-center mt-10">
+              <button
+                onClick={() => setGalleryOpen(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-[#1E1E1E] text-[#888] hover:text-white hover:border-[#333] transition-all text-sm"
+              >
+                Ver todos os serviços
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -339,6 +330,187 @@ export default function Home() {
           <span className="text-[#222] text-xs">© {new Date().getFullYear()} Todos os direitos reservados.</span>
         </div>
       </footer>
+
+      {/* Modais de serviços */}
+      {galleryOpen && (
+        <ServicesGalleryModal
+          services={services}
+          onClose={() => setGalleryOpen(false)}
+          onOpen={(s) => { setGalleryOpen(false); setDetailService(s); }}
+        />
+      )}
+      {detailService && (
+        <ServiceDetailModal service={detailService} onClose={() => setDetailService(null)} />
+      )}
     </>
+  );
+}
+
+/* ─── Ícones ─────────────────────────────────────────────────────────────── */
+function ClockIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="10" cy="10" r="7.25" />
+      <path strokeLinecap="round" d="M10 6v4l2.5 1.5" />
+    </svg>
+  );
+}
+function ScissorsIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 7.5L20 18M8.5 16.5L20 6" />
+    </svg>
+  );
+}
+
+/* ─── Card de serviço (reutilizado no carrossel e na galeria) ────────────── */
+function ServiceCard({ s, onOpen }) {
+  return (
+    <button
+      onClick={() => onOpen(s)}
+      className="group relative w-full text-left rounded-2xl overflow-hidden border border-[#1A1A1A] bg-[#0e0e0e] aspect-[4/5]"
+    >
+      {/* Placeholder base */}
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
+        <ScissorsIcon className="w-10 h-10 text-[#262626]" />
+      </div>
+      {/* Foto (se houver) */}
+      {s.image && (
+        <img
+          src={s.image}
+          alt={s.name}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+      {/* Degradê */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/20 to-transparent" />
+      {/* Info */}
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <p className="text-white font-semibold leading-tight">{s.name}</p>
+        <div className="flex items-center gap-3 mt-1.5">
+          <span className="text-blue-400 font-bold">{fmtCurrency(s.price)}</span>
+          <span className="text-[#999] text-xs flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" /> {s.duration} min</span>
+        </div>
+      </div>
+      {/* Hint ao passar o mouse */}
+      <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" /></svg>
+      </span>
+    </button>
+  );
+}
+
+/* ─── Carrossel auto-rodando ─────────────────────────────────────────────── */
+function ServicesCarousel({ services, onOpen }) {
+  const scrollRef = useRef(null);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused || services.length <= 1) return;
+    const id = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const card = el.firstElementChild;
+      const step = card ? card.offsetWidth + 16 : 300;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 12;
+      if (atEnd) el.scrollTo({ left: 0, behavior: 'smooth' });
+      else el.scrollBy({ left: step, behavior: 'smooth' });
+    }, 3500);
+    return () => clearInterval(id);
+  }, [paused, services]);
+
+  const move = (dir) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const card = el.firstElementChild;
+    const step = card ? card.offsetWidth + 16 : 300;
+    el.scrollBy({ left: dir * step, behavior: 'smooth' });
+  };
+
+  return (
+    <div
+      className="relative group/car"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div ref={scrollRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
+        {services.map((s) => (
+          <div key={s.id} className="snap-start shrink-0 w-[58%] sm:w-[300px] lg:w-[280px]">
+            <ServiceCard s={s} onOpen={onOpen} />
+          </div>
+        ))}
+      </div>
+
+      {/* Setas */}
+      <button
+        onClick={() => move(-1)}
+        aria-label="Anterior"
+        className="absolute -left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#111] border border-[#1E1E1E] text-white flex items-center justify-center hover:bg-[#1a1a1a] transition-all opacity-0 group-hover/car:opacity-100 disabled:opacity-0"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 5l-5 5 5 5" /></svg>
+      </button>
+      <button
+        onClick={() => move(1)}
+        aria-label="Próximo"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#111] border border-[#1E1E1E] text-white flex items-center justify-center hover:bg-[#1a1a1a] transition-all opacity-0 group-hover/car:opacity-100"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" /></svg>
+      </button>
+    </div>
+  );
+}
+
+/* ─── Galeria completa (modal) ───────────────────────────────────────────── */
+function ServicesGalleryModal({ services, onClose, onOpen }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 py-6" onClick={onClose}>
+      <div className="bg-[#0c0c0c] border border-[#1E1E1E] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-[#1a1a1a] flex items-center justify-between sticky top-0 bg-[#0c0c0c] z-10">
+          <div>
+            <p className="section-label mb-1">Catálogo completo</p>
+            <h3 className="text-white font-bold text-lg">Todos os serviços</h3>
+          </div>
+          <button onClick={onClose} className="text-[#555] hover:text-white text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+        </div>
+        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {services.map((s) => (
+            <ServiceCard key={s.id} s={s} onOpen={onOpen} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Detalhe de um serviço (modal) ──────────────────────────────────────── */
+function ServiceDetailModal({ service, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 py-6" onClick={onClose}>
+      <div className="bg-[#0c0c0c] border border-[#1E1E1E] rounded-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="relative aspect-[16/10] bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
+          <div className="absolute inset-0 flex items-center justify-center"><ScissorsIcon className="w-12 h-12 text-[#262626]" /></div>
+          {service.image && (
+            <img src={service.image} alt={service.name} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0c] to-transparent" />
+          <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-white flex items-center justify-center hover:bg-black/70 transition-all text-xl leading-none">×</button>
+        </div>
+        <div className="p-6">
+          <h3 className="text-white font-bold text-xl">{service.name}</h3>
+          <p className="text-[#666] text-sm mt-2 leading-relaxed">{service.description}</p>
+          <div className="flex items-center gap-5 mt-4">
+            <span className="text-blue-400 font-bold text-2xl">{fmtCurrency(service.price)}</span>
+            <span className="text-[#888] text-sm flex items-center gap-1.5"><ClockIcon className="w-4 h-4" /> {service.duration} min</span>
+          </div>
+          <Link to="/agendar" className="btn-primary w-full py-3 text-sm text-center block mt-6">
+            Agendar este serviço
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
