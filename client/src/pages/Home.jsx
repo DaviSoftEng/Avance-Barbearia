@@ -470,7 +470,7 @@ function ServiceCard({ s, onOpen }) {
       className="group/card relative w-full text-left rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:border-blue-500/40 hover:bg-white/[0.06] hover:-translate-y-1 transition-all duration-300"
     >
       {/* Foto */}
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[3/4] overflow-hidden">
         {/* Placeholder base */}
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
           <ScissorsIcon className="w-10 h-10 text-[#262626]" />
@@ -480,7 +480,7 @@ function ServiceCard({ s, onOpen }) {
             src={s.image}
             alt={s.name}
             loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+            className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover/card:scale-105"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         )}
