@@ -3,9 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const NAV_LINKS = [
-  { label: 'Serviços',    href: '/#servicos'      },
-  { label: 'Sobre',       href: '/#sobre'          },
-  { label: 'Localização', href: '/#localizacao'    },
+  { label: 'Sobre',       href: '/#sobre'       },
+  { label: 'Serviços',    href: '/#servicos'    },
+  { label: 'Localização', href: '/#localizacao' },
 ];
 
 export default function Navbar() {

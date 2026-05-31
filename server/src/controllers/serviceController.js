@@ -2,7 +2,7 @@ const prisma = require('../db');
 
 exports.getServices = async (req, res) => {
   try {
-    const services = await prisma.service.findMany({ where: { active: true }, orderBy: { price: 'asc' } });
+    const services = await prisma.service.findMany({ where: { active: true }, orderBy: [{ price: 'asc' }, { id: 'asc' }] });
     res.json(services);
   } catch (e) {
     console.error('[getServices]', e);
@@ -12,7 +12,7 @@ exports.getServices = async (req, res) => {
 
 exports.getAllServices = async (req, res) => {
   try {
-    const services = await prisma.service.findMany({ orderBy: { price: 'asc' } });
+    const services = await prisma.service.findMany({ orderBy: [{ price: 'asc' }, { id: 'asc' }] });
     res.json(services);
   } catch (e) {
     console.error('[getAllServices]', e);
