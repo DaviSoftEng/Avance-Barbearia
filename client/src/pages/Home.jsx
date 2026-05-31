@@ -58,42 +58,55 @@ export default function Home() {
   return (
     <>
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col justify-between px-6 pt-28 pb-16 max-w-6xl mx-auto">
-        <div className="relative">
-          <p className="section-label mb-8" style={{ animation: 'fadeInUp 0.7s ease 0.1s both' }}>
-            Barbearia Avance · Ryann França
-          </p>
-          <h1
-            className="text-[clamp(3rem,8vw,6.5rem)] font-bold leading-[0.92] tracking-tight text-white"
-            style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both' }}
-          >
-            Estilo,<br />Autoestima &<br />
-            <span className="text-blue-500">Confiança.</span>
-          </h1>
-          <p className="text-[#555] text-lg mt-10 max-w-md leading-relaxed" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s both' }}>
-            Agendamento online para quem valoriza o próprio tempo. Escolha o horário, apareça, saia impecável.
-          </p>
-          <div className="flex items-center gap-5 mt-10" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.45s both' }}>
-            <Link to="/agendar" className="btn-primary px-7 py-3.5 text-sm relative overflow-hidden group">
-              <span className="relative z-10">Agendar agora</span>
-              <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-            </Link>
-            <a href="#sobre" className="text-[#444] hover:text-white text-sm transition-colors duration-200">
-              Conheça o barbeiro ↓
-            </a>
-          </div>
+      <section className="relative min-h-screen -mt-[73px] flex flex-col justify-between overflow-hidden">
+        {/* Fundo: foto da barbearia com efeito de vidro fosco */}
+        <div className="absolute inset-0 z-0">
+          <img src="/fundo.png" alt="" className="w-full h-full object-cover scale-105 blur-[2px]" />
+          {/* Vidro fosco (escurece e dá o efeito translúcido) */}
+          <div className="absolute inset-0 backdrop-blur-[3px] bg-[#0A0A0A]/70" />
+          {/* Degradê para fundir com o resto da página e dar contraste ao texto */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/40 to-[#0A0A0A]/60" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A]/70 via-transparent to-transparent" />
         </div>
 
-        <div className="relative flex items-end justify-between mt-20 border-t border-[#1A1A1A] pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
-          <div className="flex gap-10 sm:gap-12">
-            {[['Heliópolis', 'Belford Roxo · RJ'], ['Seg a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
-              <div key={l}>
-                <p className="text-white font-bold text-lg sm:text-2xl">{v}</p>
-                <p className="text-[#333] text-xs mt-0.5">{l}</p>
-              </div>
-            ))}
+        {/* Conteúdo */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pt-36 pb-16 flex flex-col justify-between min-h-screen">
+          <div className="relative">
+            <p className="section-label mb-8" style={{ animation: 'fadeInUp 0.7s ease 0.1s both' }}>
+              Barbearia Avance · Ryann França
+            </p>
+            <h1
+              className="text-[clamp(3rem,8vw,6.5rem)] font-bold leading-[0.92] tracking-tight text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.5)]"
+              style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s both' }}
+            >
+              Estilo,<br />Autoestima &<br />
+              <span className="text-blue-500">Confiança.</span>
+            </h1>
+            <p className="text-white/70 text-lg mt-10 max-w-md leading-relaxed" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s both' }}>
+              Agendamento online para quem valoriza o próprio tempo. Escolha o horário, apareça, saia impecável.
+            </p>
+            <div className="flex items-center gap-5 mt-10" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.45s both' }}>
+              <Link to="/agendar" className="btn-primary px-7 py-3.5 text-sm relative overflow-hidden group">
+                <span className="relative z-10">Agendar agora</span>
+                <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              </Link>
+              <a href="#sobre" className="text-white/60 hover:text-white text-sm transition-colors duration-200">
+                Conheça o barbeiro ↓
+              </a>
+            </div>
           </div>
-          <img src="/logo.jpeg" alt="Avance" className="h-14 w-14 rounded-full object-cover opacity-40" />
+
+          <div className="relative flex items-end justify-between mt-20 border-t border-white/10 pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
+            <div className="flex gap-10 sm:gap-12">
+              {[['Heliópolis', 'Belford Roxo · RJ'], ['Seg a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
+                <div key={l}>
+                  <p className="text-white font-bold text-lg sm:text-2xl">{v}</p>
+                  <p className="text-white/45 text-xs mt-0.5">{l}</p>
+                </div>
+              ))}
+            </div>
+            <img src="/logo.jpeg" alt="Avance" className="h-14 w-14 rounded-full object-cover opacity-70 border border-white/10" />
+          </div>
         </div>
       </section>
 
