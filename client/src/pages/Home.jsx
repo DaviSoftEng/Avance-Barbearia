@@ -110,6 +110,44 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── SERVIÇOS ── */}
+      <SectionDivider />
+      <section id="servicos">
+        <div className="max-w-6xl mx-auto px-6 py-24">
+          <Reveal className="text-center max-w-xl mx-auto mb-12">
+            <p className="section-label mb-4">O que fazemos</p>
+            <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
+              Serviços que <span className="text-blue-500">valorizam você</span>
+            </h2>
+            <p className="text-[#555] mt-5 leading-relaxed">
+              Do corte clássico ao degradê moderno. Escolha, agende e apareça.
+            </p>
+          </Reveal>
+
+          <Reveal delay="reveal-delay-1">
+            {services.length > 0 ? (
+              <ServicesCarousel services={services} onOpen={setDetailService} />
+            ) : (
+              <p className="text-[#222] text-center">Carregando...</p>
+            )}
+          </Reveal>
+
+          {services.length > 0 && (
+            <div className="text-center mt-10">
+              <button
+                onClick={() => setGalleryOpen(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-[#1E1E1E] text-[#888] hover:text-white hover:border-[#333] transition-all text-sm"
+              >
+                Ver todos os serviços
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* ── SOBRE ── */}
       <SectionDivider />
       <section id="sobre">
@@ -168,44 +206,6 @@ export default function Home() {
             </Reveal>
 
           </div>
-        </div>
-      </section>
-
-      {/* ── SERVIÇOS ── */}
-      <SectionDivider />
-      <section id="servicos">
-        <div className="max-w-6xl mx-auto px-6 py-24">
-          <Reveal className="text-center max-w-xl mx-auto mb-12">
-            <p className="section-label mb-4">O que fazemos</p>
-            <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
-              Serviços que <span className="text-blue-500">valorizam você</span>
-            </h2>
-            <p className="text-[#555] mt-5 leading-relaxed">
-              Do corte clássico ao degradê moderno. Escolha, agende e apareça.
-            </p>
-          </Reveal>
-
-          <Reveal delay="reveal-delay-1">
-            {services.length > 0 ? (
-              <ServicesCarousel services={services} onOpen={setDetailService} />
-            ) : (
-              <p className="text-[#222] text-center">Carregando...</p>
-            )}
-          </Reveal>
-
-          {services.length > 0 && (
-            <div className="text-center mt-10">
-              <button
-                onClick={() => setGalleryOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-[#1E1E1E] text-[#888] hover:text-white hover:border-[#333] transition-all text-sm"
-              >
-                Ver todos os serviços
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 5l5 5-5 5" />
-                </svg>
-              </button>
-            </div>
-          )}
         </div>
       </section>
 
