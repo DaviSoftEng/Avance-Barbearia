@@ -14,6 +14,10 @@ function Reveal({ children, className = '', delay = '' }) {
 
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
+function fmtCurrency(v) {
+  return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+}
+
 // Agrupa dias consecutivos com mesmo horário em faixas (ex: Seg–Sex)
 function groupHours(hours) {
   if (!hours?.length) return [];
