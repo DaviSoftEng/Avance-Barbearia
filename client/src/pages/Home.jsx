@@ -128,7 +128,7 @@ export default function Home() {
 
           <div className="relative flex items-end justify-between mt-20 border-t border-white/10 pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
             <div className="flex gap-10 sm:gap-12">
-              {[['Heliópolis', 'Belford Roxo · RJ'], ['Seg a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
+              {[['Heliópolis', 'Belford Roxo · RJ'], ['Ter a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
                 <div key={l}>
                   <p className="text-white font-bold text-lg sm:text-2xl">{v}</p>
                   <p className="text-white/45 text-xs mt-0.5">{l}</p>

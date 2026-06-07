@@ -53,7 +53,7 @@ async function main() {
     await prisma.businessHours.createMany({
       data: [
         { dayOfWeek: 0, isOpen: false, openTime: '09:00', closeTime: '19:00' }, // Dom
-        { dayOfWeek: 1, isOpen: true,  openTime: '09:00', closeTime: '19:00' }, // Seg
+        { dayOfWeek: 1, isOpen: false, openTime: '09:00', closeTime: '19:00' }, // Seg (fechado)
         { dayOfWeek: 2, isOpen: true,  openTime: '09:00', closeTime: '19:00' }, // Ter
         { dayOfWeek: 3, isOpen: true,  openTime: '09:00', closeTime: '19:00' }, // Qua
         { dayOfWeek: 4, isOpen: true,  openTime: '09:00', closeTime: '19:00' }, // Qui
