@@ -41,7 +41,7 @@ export default function MeuAgendamento() {
     setCancelling(id);
     setError('');
     try {
-      await cancelAppointmentPublic(id);
+      await cancelAppointmentPublic(id, phone.trim());
       // Só remove da UI após confirmação do servidor
       setAppointments((prev) => prev.filter((a) => a.id !== id));
     } catch (e) {

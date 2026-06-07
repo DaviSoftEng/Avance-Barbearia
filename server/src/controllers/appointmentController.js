@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const { audit } = require('../utils/audit');
 
 const TZ = 'America/Sao_Paulo';
 
@@ -21,6 +22,12 @@ exports.createAppointment = async (req, res) => {
 
   if (!clientName || !clientPhone || !Array.isArray(serviceIds) || serviceIds.length === 0 || !date || !time) {
     return res.status(400).json({ error: 'Dados incompletos' });
+  }
+  if (clientName.length > 120 || (notes && notes.length > 500)) {
+    return res.status(400).json({ error: 'Texto muito longo' });
+  }
+  if (serviceIds.length > 20) {
+    return res.status(400).json({ error: 'Serviços demais' });
   }
 
   const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
@@ -146,6 +153,7 @@ exports.updateStatus = async (req, res) => {
       data: { status },
       include: APPOINTMENT_INCLUDE,
     });
+    audit(req, 'appointment.updateStatus', { id: appointment.id, status });
     res.json(appointment);
   } catch (e) {
     console.error('[updateStatus]', e);
@@ -159,6 +167,7 @@ exports.cancelAppointment = async (req, res) => {
       where: { id: parseInt(req.params.id) },
       data: { status: 'cancelled' },
     });
+    audit(req, 'appointment.cancel', { id: appointment.id });
     res.json(appointment);
   } catch (e) {
     console.error('[cancelAppointment]', e);
@@ -169,6 +178,7 @@ exports.cancelAppointment = async (req, res) => {
 exports.deleteAppointment = async (req, res) => {
   try {
     await prisma.appointment.delete({ where: { id: parseInt(req.params.id) } });
+    audit(req, 'appointment.delete', { id: parseInt(req.params.id) });
     res.status(204).send();
   } catch (e) {
     console.error('[deleteAppointment]', e);
@@ -282,6 +292,12 @@ exports.updateAppointment = async (req, res) => {
   if (!clientName || !clientPhone || !Array.isArray(serviceIds) || serviceIds.length === 0 || !date || !time) {
     return res.status(400).json({ error: 'Dados incompletos' });
   }
+  if (clientName.length > 120 || (notes && notes.length > 500)) {
+    return res.status(400).json({ error: 'Texto muito longo' });
+  }
+  if (serviceIds.length > 20) {
+    return res.status(400).json({ error: 'Serviços demais' });
+  }
   const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
   if (!phoneRegex.test(clientPhone)) return res.status(400).json({ error: 'Telefone inválido' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Data inválida' });
@@ -347,6 +363,7 @@ exports.updateAppointment = async (req, res) => {
       });
     });
 
+    audit(req, 'appointment.update', { id });
     res.json(result);
   } catch (e) {
     if (e.status) return res.status(e.status).json({ error: e.error });
@@ -355,16 +372,28 @@ exports.updateAppointment = async (req, res) => {
   }
 };
 
-// Rota pública — cliente cancela o próprio agendamento (sem token)
+// Rota pública — cliente cancela o próprio agendamento (sem token).
+// Exige o telefone do agendamento como prova de posse (evita cancelamento em massa por id sequencial).
 exports.cancelAppointmentPublic = async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: 'Identificador inválido' });
+
+  const { phone } = req.body || {};
+  if (!phone || typeof phone !== 'string') {
+    return res.status(400).json({ error: 'Telefone é obrigatório para cancelar' });
+  }
+
   try {
-    const appt = await prisma.appointment.findUnique({ where: { id: parseInt(req.params.id) } });
-    if (!appt) return res.status(404).json({ error: 'Agendamento não encontrado' });
+    const appt = await prisma.appointment.findUnique({ where: { id } });
+    // Mesma resposta para "não existe" e "telefone não confere" — não revela existência de id
+    if (!appt || appt.clientPhone !== phone.trim()) {
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+    }
     if (appt.status !== 'confirmed') {
       return res.status(400).json({ error: 'Apenas agendamentos confirmados podem ser cancelados' });
     }
     const updated = await prisma.appointment.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       data: { status: 'cancelled' },
     });
     res.json(updated);

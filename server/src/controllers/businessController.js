@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const { audit } = require('../utils/audit');
 
 exports.getBusinessHours = async (req, res) => {
   try {
@@ -23,6 +24,7 @@ exports.updateBusinessHours = async (req, res) => {
         })
       )
     );
+    audit(req, 'businessHours.update', { days: updates.length });
     res.json(updates);
   } catch (e) {
     console.error('[updateBusinessHours]', e);
@@ -47,6 +49,7 @@ exports.createDayBlock = async (req, res) => {
     const block = await prisma.dayBlock.create({
       data: { date, reason: reason || '', startTime: startTime || null, endTime: endTime || null },
     });
+    audit(req, 'dayBlock.create', { id: block.id, date });
     res.status(201).json(block);
   } catch (e) {
     console.error('[createDayBlock]', e);
@@ -57,6 +60,7 @@ exports.createDayBlock = async (req, res) => {
 exports.deleteDayBlock = async (req, res) => {
   try {
     await prisma.dayBlock.delete({ where: { id: parseInt(req.params.id) } });
+    audit(req, 'dayBlock.delete', { id: parseInt(req.params.id) });
     res.status(204).send();
   } catch (e) {
     console.error('[deleteDayBlock]', e);

@@ -27,11 +27,11 @@ api.interceptors.response.use(
 
 // Public
 export const getServices = () => api.get('/services');
-export const getAvailableSlots = (date, duration) => api.get(`/slots/available?date=${date}${duration ? `&duration=${duration}` : ''}`);
+export const getAvailableSlots = (date, duration) => api.get(`/slots/available?date=${encodeURIComponent(date)}${duration ? `&duration=${encodeURIComponent(duration)}` : ''}`);
 export const createAppointment = (data) => api.post('/appointments', data);
-export const lookupAppointment = (phone) => api.get(`/appointments/lookup?phone=${phone}`);
+export const lookupAppointment = (phone) => api.get(`/appointments/lookup?phone=${encodeURIComponent(phone)}`);
 export const updateAppointment = (id, data) => api.put(`/appointments/${id}`, data);
-export const cancelAppointmentPublic = (id) => api.patch(`/appointments/${id}/cancel-public`);
+export const cancelAppointmentPublic = (id, phone) => api.patch(`/appointments/${id}/cancel-public`, { phone });
 export const getBusinessHours = () => api.get('/business/hours');
 
 // Auth

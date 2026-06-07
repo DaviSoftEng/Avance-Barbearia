@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const { audit } = require('../utils/audit');
 
 exports.getServices = async (req, res) => {
   try {
@@ -29,6 +30,7 @@ exports.createService = async (req, res) => {
     const service = await prisma.service.create({
       data: { name, price: parseFloat(price), duration: parseInt(duration), description, image: image || '' },
     });
+    audit(req, 'service.create', { id: service.id, name: service.name });
     res.status(201).json(service);
   } catch (e) {
     console.error('[createService]', e);
@@ -48,6 +50,7 @@ exports.updateService = async (req, res) => {
     if (image != null) data.image = image;
 
     const service = await prisma.service.update({ where: { id: parseInt(req.params.id) }, data });
+    audit(req, 'service.update', { id: service.id });
     res.json(service);
   } catch (e) {
     console.error('[updateService]', e);
@@ -58,6 +61,7 @@ exports.updateService = async (req, res) => {
 exports.deleteService = async (req, res) => {
   try {
     await prisma.service.update({ where: { id: parseInt(req.params.id) }, data: { active: false } });
+    audit(req, 'service.deactivate', { id: parseInt(req.params.id) });
     res.status(204).send();
   } catch (e) {
     console.error('[deleteService]', e);

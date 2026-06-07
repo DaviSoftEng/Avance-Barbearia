@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const { audit } = require('../utils/audit');
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -100,6 +101,7 @@ exports.createRecurringBlock = async (req, res) => {
     const block = await prisma.recurringBlock.create({
       data: { clientName, dayOfWeek: parseInt(dayOfWeek), time, notes: notes || '' },
     });
+    audit(req, 'recurringBlock.create', { id: block.id });
     res.status(201).json(block);
   } catch (e) {
     console.error('[createRecurringBlock]', e);
@@ -110,6 +112,7 @@ exports.createRecurringBlock = async (req, res) => {
 exports.deleteRecurringBlock = async (req, res) => {
   try {
     await prisma.recurringBlock.delete({ where: { id: parseInt(req.params.id) } });
+    audit(req, 'recurringBlock.delete', { id: parseInt(req.params.id) });
     res.status(204).send();
   } catch (e) {
     console.error('[deleteRecurringBlock]', e);
