@@ -1,5 +1,6 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
+const { lunchBreak } = require('../utils/businessRules');
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -66,6 +67,10 @@ exports.getAvailableSlots = async (req, res) => {
     if (dayBlock?.startTime && dayBlock?.endTime) {
       occupied.push({ start: timeToMinutes(dayBlock.startTime), end: timeToMinutes(dayBlock.endTime) });
     }
+
+    // Horário de almoço (12h–13h, seg a sex)
+    const lunch = lunchBreak(dayOfWeek);
+    if (lunch) occupied.push(lunch);
 
     const closeMin = timeToMinutes(closeTime);
 

@@ -1,5 +1,6 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
+const { lunchBreak } = require('../utils/businessRules');
 
 const TZ = 'America/Sao_Paulo';
 
@@ -64,6 +65,12 @@ exports.createAppointment = async (req, res) => {
         if (startMin < timeToMinutes(bh.openTime) || endMin > timeToMinutes(bh.closeTime)) {
           throw { status: 409, error: 'Fora do horário de funcionamento' };
         }
+      }
+
+      // Horário de almoço (12h–13h, seg a sex)
+      const lunch = lunchBreak(dayOfWeek);
+      if (lunch && startMin < lunch.end && endMin > lunch.start) {
+        throw { status: 409, error: 'Horário de almoço (12h às 13h)' };
       }
 
       // Verifica bloqueio de dia
@@ -322,6 +329,12 @@ exports.updateAppointment = async (req, res) => {
       if (bh && !bh.isOpen) throw { status: 409, error: 'Barbearia fechada neste dia' };
       if (bh && (startMin < timeToMinutes(bh.openTime) || endMin > timeToMinutes(bh.closeTime))) {
         throw { status: 409, error: 'Fora do horário de funcionamento' };
+      }
+
+      // Horário de almoço (12h–13h, seg a sex)
+      const lunch = lunchBreak(dayOfWeek);
+      if (lunch && startMin < lunch.end && endMin > lunch.start) {
+        throw { status: 409, error: 'Horário de almoço (12h às 13h)' };
       }
 
       const dayBlock = await tx.dayBlock.findFirst({ where: { date } });
