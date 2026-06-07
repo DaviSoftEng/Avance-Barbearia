@@ -6,7 +6,10 @@ function timeToMinutes(t) {
   return h * 60 + m;
 }
 
-function generateSlots(openTime, closeTime, interval = 30) {
+// Intervalo entre os horários oferecidos ao cliente (de hora em hora)
+const SLOT_INTERVAL = 60;
+
+function generateSlots(openTime, closeTime, interval = SLOT_INTERVAL) {
   const slots = [];
   let current = timeToMinutes(openTime);
   const end   = timeToMinutes(closeTime);

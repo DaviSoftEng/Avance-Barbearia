@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   getAppointments, updateAppointmentStatus, updateAppointment, cancelAppointment, deleteAppointment,
@@ -26,6 +26,30 @@ function fmt(date) {
 }
 function fmtCurrency(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+}
+// Horário "HH:MM" → minutos do dia
+function toMin(t) {
+  const [h, m] = (t || '0:0').split(':').map(Number);
+  return h * 60 + m;
+}
+// Soma minutos a um horário "HH:MM" e devolve "HH:MM"
+function addMin(t, mins) {
+  const tot = toMin(t) + (mins || 0);
+  const h = Math.floor(tot / 60) % 24;
+  const m = tot % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+// Duração legível: 90 → "1h 30min", 45 → "45min"
+function durLabel(mins) {
+  const h = Math.floor((mins || 0) / 60);
+  const m = (mins || 0) % 60;
+  return h ? `${h}h${m ? ` ${m}min` : ''}` : `${m}min`;
+}
+// Link de WhatsApp a partir do telefone (Brasil: garante DDI 55)
+function waLink(phone) {
+  const d = (phone || '').replace(/\D/g, '');
+  const full = d.startsWith('55') ? d : `55${d}`;
+  return `https://wa.me/${full}`;
 }
 // Data local em YYYY-MM-DD (sem conversão para UTC)
 function ymd(d) {
@@ -305,7 +329,6 @@ function WeekView({ weekDates, apptsByDate, onStatusChange, onDelete }) {
 }
 
 function DayView({ date, appointments, loading, onStatusChange, onDelete, onReload }) {
-  const [expanded, setExpanded] = useState(null);
   const [editingAppt, setEditingAppt] = useState(null);
   const dateLabel = date
     ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
@@ -313,64 +336,61 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete, onRelo
 
   if (loading) return <Spinner />;
 
+  // Cancelados ficam fora da linha do tempo (não ocupam horário)
+  const active = appointments.filter((a) => a.status !== 'cancelled');
+  const cancelled = appointments.filter((a) => a.status === 'cancelled');
+
+  const revenue = active
+    .filter((a) => a.status === 'confirmed' || a.status === 'completed')
+    .reduce((s, a) => s + a.price, 0);
+
   return (
-    <div>
-      <p className="text-[#555] text-sm capitalize mb-4">{dateLabel}</p>
+    <div className="space-y-4">
+      <p className="text-[#555] text-sm capitalize">{dateLabel}</p>
+
+      {/* Resumo do dia */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <MiniStat label="Clientes"    value={active.length} />
+        <MiniStat label="Confirmados" value={active.filter((a) => a.status === 'confirmed').length} color="blue" />
+        <MiniStat label="Concluídos"  value={active.filter((a) => a.status === 'completed').length} color="green" />
+        <MiniStat label="Previsto"    value={fmtCurrency(revenue)} color="blue" />
+      </div>
+
       {appointments.length === 0 && (
         <div className="card p-10 text-center">
           <p className="text-[#333] text-sm">Nenhum agendamento neste dia.</p>
         </div>
       )}
-      <div className="space-y-3">
-        {appointments.map((a) => (
-          <div key={a.id} className={`card border overflow-hidden ${STATUS_CONFIG[a.status]?.bg}`}>
-            <button
-              className="w-full px-5 py-4 text-left flex items-center justify-between"
-              onClick={() => setExpanded(expanded === a.id ? null : a.id)}
-            >
-              <div className="flex items-center gap-4">
-                <p className="text-white text-lg font-bold w-12">{a.time}</p>
-                <div>
-                  <p className="text-white font-medium">{a.clientName}</p>
-                  <p className="text-[#555] text-sm">{apptServiceNames(a)} · {fmtCurrency(a.price)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`hidden sm:inline text-xs px-2 py-0.5 rounded-full border ${STATUS_CONFIG[a.status]?.bg} ${STATUS_CONFIG[a.status]?.color}`}>
-                  {STATUS_CONFIG[a.status]?.label}
-                </span>
-                <span className="text-[#444] text-xs">{expanded === a.id ? '▲' : '▼'}</span>
-              </div>
-            </button>
-            {expanded === a.id && (
-              <div className="px-5 pb-4 border-t border-[#1a1a1a] pt-4 space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <Info label="Telefone"  value={a.clientPhone} />
-                  <Info label="Serviço"   value={apptServiceNames(a)} />
-                  <Info label="Duração"   value={`${a.totalDuration} min`} />
-                  <Info label="Valor"     value={fmtCurrency(a.price)} accent />
-                  {a.notes && <Info label="Obs." value={a.notes} span2 />}
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <ActionBtn color="blue" onClick={() => setEditingAppt(a)}>Editar</ActionBtn>
-                  {a.status !== 'completed' && (
-                    <ActionBtn color="green" onClick={() => onStatusChange(a.id, 'completed')}>Marcar concluído</ActionBtn>
-                  )}
-                  {a.status !== 'no_show' && a.status !== 'cancelled' && (
-                    <ActionBtn color="yellow" onClick={() => onStatusChange(a.id, 'no_show')}>Não compareceu</ActionBtn>
-                  )}
-                  {a.status !== 'cancelled' && (
-                    <ActionBtn color="red" onClick={() => onStatusChange(a.id, 'cancelled')}>Cancelar</ActionBtn>
-                  )}
-                  <button onClick={() => onDelete(a.id)} className="ml-auto px-3 py-1.5 bg-[#1a1a1a] border border-[#252525] text-[#444] text-xs rounded-lg hover:text-red-400 transition-all">
-                    Excluir
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+
+      {/* Linha do tempo */}
+      <div className="space-y-2">
+        {active.map((a, idx) => {
+          const prev = active[idx - 1];
+          const prevEnd = prev ? addMin(prev.time, prev.totalDuration || 0) : null;
+          const gapMin = prev ? toMin(a.time) - toMin(prevEnd) : 0;
+          return (
+            <Fragment key={a.id}>
+              {gapMin > 0 && <FreeGap mins={gapMin} from={prevEnd} to={a.time} />}
+              <ApptRow a={a} onEdit={() => setEditingAppt(a)} onStatusChange={onStatusChange} onDelete={onDelete} />
+            </Fragment>
+          );
+        })}
       </div>
+
+      {/* Cancelados */}
+      {cancelled.length > 0 && (
+        <div className="pt-2">
+          <p className="text-[#444] text-xs mb-2">Cancelados ({cancelled.length})</p>
+          <div className="space-y-2">
+            {cancelled.map((a) => (
+              <div key={a.id} className="flex items-center justify-between px-4 py-2.5 bg-[#0d0d0d] border border-[#161616] rounded-xl">
+                <span className="text-[#555] text-sm line-through truncate">{a.time} · {a.clientName} · {apptServiceNames(a)}</span>
+                <button onClick={() => onDelete(a.id)} className="text-[#333] hover:text-red-400 text-xs ml-3 shrink-0 transition-colors">Excluir</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {editingAppt && (
         <EditModal
@@ -380,6 +400,97 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete, onRelo
         />
       )}
     </div>
+  );
+}
+
+function MiniStat({ label, value, color }) {
+  const colors = { blue: 'text-blue-400', green: 'text-green-400' };
+  return (
+    <div className="bg-[#0d0d0d] border border-[#161616] rounded-xl px-3 py-2.5">
+      <p className="text-[#444] text-[11px]">{label}</p>
+      <p className={`text-lg font-bold ${colors[color] || 'text-white'}`}>{value}</p>
+    </div>
+  );
+}
+
+function FreeGap({ mins, from, to }) {
+  return (
+    <div className="flex items-center gap-3 px-1 py-0.5">
+      <div className="flex-1 border-t border-dashed border-[#1c1c1c]" />
+      <span className="text-[#3d3d3d] text-[11px] shrink-0">livre {durLabel(mins)} · {from}–{to}</span>
+      <div className="flex-1 border-t border-dashed border-[#1c1c1c]" />
+    </div>
+  );
+}
+
+function ApptRow({ a, onEdit, onStatusChange, onDelete }) {
+  const end = addMin(a.time, a.totalDuration || 0);
+  const st = STATUS_CONFIG[a.status];
+  return (
+    <div className={`card border ${st?.bg} p-4`}>
+      <div className="flex gap-4">
+        {/* Coluna de horário */}
+        <div className="flex flex-col items-center w-16 shrink-0">
+          <span className="text-white text-lg font-bold leading-tight">{a.time}</span>
+          <span className="text-[#555] text-[11px]">até {end}</span>
+          <span className="mt-1 text-[10px] text-[#777] bg-[#111] border border-[#1E1E1E] rounded px-1.5 py-0.5">{durLabel(a.totalDuration || 0)}</span>
+        </div>
+
+        {/* Conteúdo */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-white font-semibold truncate">{a.clientName}</p>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full border shrink-0 ${st?.bg} ${st?.color}`}>{st?.label}</span>
+          </div>
+          <p className="text-[#888] text-sm mt-0.5">{apptServiceNames(a)}</p>
+
+          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            <span className="text-blue-400 text-sm font-semibold">{fmtCurrency(a.price)}</span>
+            <a
+              href={waLink(a.clientPhone)}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#666] hover:text-green-400 text-xs inline-flex items-center gap-1 transition-colors"
+            >
+              <WhatsAppIcon /> {a.clientPhone}
+            </a>
+          </div>
+
+          {a.notes && (
+            <p className="text-[#777] text-xs mt-2 bg-[#0d0d0d] border border-[#161616] rounded-lg px-2.5 py-1.5">📝 {a.notes}</p>
+          )}
+
+          {/* Ações rápidas */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {a.status !== 'completed' && (
+              <ActionBtn color="green" onClick={() => onStatusChange(a.id, 'completed')}>Concluído</ActionBtn>
+            )}
+            {a.status !== 'no_show' && (
+              <ActionBtn color="yellow" onClick={() => onStatusChange(a.id, 'no_show')}>Faltou</ActionBtn>
+            )}
+            {a.status !== 'confirmed' && (
+              <ActionBtn color="blue" onClick={() => onStatusChange(a.id, 'confirmed')}>Reabrir</ActionBtn>
+            )}
+            <ActionBtn color="blue" onClick={onEdit}>Editar</ActionBtn>
+            <ActionBtn color="red" onClick={() => onStatusChange(a.id, 'cancelled')}>Cancelar</ActionBtn>
+            <button
+              onClick={() => onDelete(a.id)}
+              className="ml-auto px-3 py-1.5 bg-[#1a1a1a] border border-[#252525] text-[#444] text-xs rounded-lg hover:text-red-400 transition-all"
+            >
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
+      <path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.738-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+    </svg>
   );
 }
 
@@ -732,15 +843,6 @@ function KpiCard({ title, value, sub, color }) {
       <p className="text-[#444] text-xs mb-3">{title}</p>
       <p className={`text-2xl font-bold ${colors[color] || 'text-white'}`}>{value}</p>
       {sub && <p className="text-[#333] text-xs mt-1">{sub}</p>}
-    </div>
-  );
-}
-
-function Info({ label, value, accent, span2 }) {
-  return (
-    <div className={span2 ? 'col-span-2' : ''}>
-      <p className="text-[#444] text-xs">{label}</p>
-      <p className={`text-sm font-medium ${accent ? 'text-blue-400' : 'text-white'}`}>{value}</p>
     </div>
   );
 }
