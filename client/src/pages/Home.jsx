@@ -18,6 +18,26 @@ function fmtCurrency(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
 }
 
+const IMAGE_FALLBACK = {
+  'infantil':                          '/cortes/infantil.jpeg',
+  'sobrancelha':                       '/cortes/sobrancelha.jpeg',
+  'pigmentação':                       '/cortes/pigmentacao.jpeg',
+  'acabamento + pigmentação':          '/cortes/acabamento-pigmentacao.jpeg',
+  'barba':                             '/cortes/barba.jpeg',
+  'corte':                             '/cortes/corte.jpeg',
+  'corte + cavanhaque e pigmentação':  '/cortes/corte-cavanhaque-pigmentacao.jpeg',
+  'corte + pigmentação':               '/cortes/corte-pigmentacao.jpeg',
+  'corte + barba':                     '/cortes/corte-barba.jpeg',
+  'corte + barba e sobrancelha':       '/cortes/corte-barba-sobrancelha.jpeg',
+  'corte + nevou':                     '/cortes/corte-nevou.jpeg',
+  'corte + reflexo':                   '/cortes/corte-reflexo.jpeg',
+  'corte + vermelhou':                 '/cortes/corte-vermelhou.jpeg',
+};
+
+function resolveImage(s) {
+  return s.image || IMAGE_FALLBACK[s.name?.toLowerCase()] || null;
+}
+
 // Dados de contato — preencha whatsapp e email quando tiver
 const CONTACT = {
   whatsapp: '',                 // só números com DDI/DDD, ex: '5521999999999'
@@ -475,9 +495,9 @@ function ServiceCard({ s, onOpen }) {
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
           <ScissorsIcon className="w-10 h-10 text-[#262626]" />
         </div>
-        {s.image && (
+        {resolveImage(s) && (
           <img
-            src={s.image}
+            src={resolveImage(s)}
             alt={s.name}
             loading="lazy"
             className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover/card:scale-105"
@@ -563,8 +583,8 @@ function ServiceDetailModal({ service, onClose }) {
       <div className="bg-[#0c0c0c] border border-[#1E1E1E] rounded-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="relative aspect-[16/10] bg-gradient-to-br from-[#161616] to-[#0c0c0c]">
           <div className="absolute inset-0 flex items-center justify-center"><ScissorsIcon className="w-12 h-12 text-[#262626]" /></div>
-          {service.image && (
-            <img src={service.image} alt={service.name} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          {resolveImage(service) && (
+            <img src={resolveImage(service)} alt={service.name} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0c] to-transparent" />
           <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-white flex items-center justify-center hover:bg-black/70 transition-all text-xl leading-none">×</button>
