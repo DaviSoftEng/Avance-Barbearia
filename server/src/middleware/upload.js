@@ -2,8 +2,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Pasta onde as fotos enviadas ficam salvas (server/uploads)
-const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+// Pasta onde as fotos enviadas ficam salvas.
+// Em produção (Railway), aponte UPLOADS_DIR para o volume persistente (ex: /data/uploads).
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '..', '..', 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Extensão derivada do tipo do arquivo (não confia no nome original → evita path traversal)

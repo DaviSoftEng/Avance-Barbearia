@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Sem VITE_API_URL definido, a API é buscada no mesmo host que serve o site
-// (assim funciona em localhost no PC e pelo IP da rede no celular, sem hardcode).
-const baseURL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
+// Base da API:
+// - produção (site servido pelo próprio servidor): relativa "/api" → mesma origem
+// - dev (Vite na 5173): host atual na porta 3001 → funciona em localhost e pelo IP da rede
+const baseURL = import.meta.env.VITE_API_URL
+  || (import.meta.env.DEV ? `http://${window.location.hostname}:3001/api` : '/api');
 const api = axios.create({ baseURL });
 
 // Origem da API sem o "/api" — usada para montar URLs de imagens enviadas
