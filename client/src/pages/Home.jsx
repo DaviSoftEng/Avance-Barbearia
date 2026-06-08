@@ -42,7 +42,7 @@ function resolveImage(s) {
 const CONTACT = {
   whatsapp: '',                 // só números com DDI/DDD, ex: '5521999999999'
   email: '',                    // ex: 'contato@barbeariaavance.com'
-  instagram: 'barbearia.avance',
+  instagram: 'ryann_barbeiro',
   addressLine1: 'Rua Tupinambás, 16 — Jardim América',
   addressLine2: 'Belford Roxo · RJ, 26140-330',
   mapsUrl: 'https://maps.google.com/?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ',
@@ -268,9 +268,9 @@ export default function Home() {
 
                 <div>
                   <p className="text-[#333] text-xs uppercase tracking-wider mb-2">Contato</p>
-                  <a href="https://instagram.com/barbearia.avance" target="_blank" rel="noreferrer"
+                  <a href="https://instagram.com/ryann_barbeiro" target="_blank" rel="noreferrer"
                     className="text-[#555] text-sm hover:text-blue-400 transition-colors mt-0.5 block">
-                    @barbearia.avance
+                    @ryann_barbeiro
                   </a>
                 </div>
 
