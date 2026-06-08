@@ -40,7 +40,7 @@ function resolveImage(s) {
 
 // Dados de contato — preencha whatsapp e email quando tiver
 const CONTACT = {
-  whatsapp: '',                 // só números com DDI/DDD, ex: '5521999999999'
+  whatsapp: '5521980350062',                 // só números com DDI/DDD, ex: '5521999999999'
   email: '',                    // ex: 'contato@barbeariaavance.com'
   instagram: 'ryann_barbeiro',
   addressLine1: 'Rua Tupinambás, 16 — Jardim América',
@@ -268,6 +268,11 @@ export default function Home() {
 
                 <div>
                   <p className="text-[#333] text-xs uppercase tracking-wider mb-2">Contato</p>
+                  <p className="text-[#777] text-sm mb-1">Para tirar dúvidas</p>
+                  <a href="https://wa.me/5521980350062" target="_blank" rel="noreferrer"
+                    className="text-white font-medium hover:text-blue-400 transition-colors block mb-2">
+                    (21) 98035-0062 · WhatsApp
+                  </a>
                   <a href="https://instagram.com/ryann_barbeiro" target="_blank" rel="noreferrer"
                     className="text-[#555] text-sm hover:text-blue-400 transition-colors mt-0.5 block">
                     @ryann_barbeiro
