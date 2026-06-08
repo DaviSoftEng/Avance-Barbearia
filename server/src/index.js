@@ -16,6 +16,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const { generalLimiter } = require('./middleware/rateLimit');
+const { uploadsDir } = require('./middleware/upload');
 const authRoutes = require('./routes/auth');
 const appointmentRoutes = require('./routes/appointments');
 const serviceRoutes = require('./routes/services');
@@ -30,8 +31,20 @@ app.set('trust proxy', 1);
 // Cabeçalhos de segurança HTTP. CORP cross-origin pois o SPA roda em outra origem.
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+// Origens permitidas (CLIENT_URL aceita várias separadas por vírgula)
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',').map((o) => o.trim()).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    // Sem origin (curl, apps nativos) ou origem na lista → permite
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Origem não permitida pelo CORS'));
+  },
+}));
 app.use(express.json({ limit: '100kb' }));
+
+// Fotos enviadas pelo painel (servidas estaticamente)
+app.use('/uploads', express.static(uploadsDir));
 
 // Limite global de requisições (defesa em profundidade)
 app.use('/api', generalLimiter);

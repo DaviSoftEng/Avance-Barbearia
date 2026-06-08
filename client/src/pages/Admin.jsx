@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import {
   getAppointments, updateAppointmentStatus, updateAppointment, cancelAppointment, deleteAppointment,
   getStats, getClients,
-  getAllServices, createService, updateService, deleteService,
+  getAllServices, createService, updateService, deleteService, uploadServiceImage,
   getRecurringBlocks, createRecurringBlock, deleteRecurringBlock,
   getBusinessHours, updateBusinessHours, getDayBlocks, createDayBlock, deleteDayBlock,
 } from '../services/api';
+import { mediaUrl } from '../services/api';
 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -305,7 +306,8 @@ function TabAgenda() {
 
 function WeekView({ weekDates, apptsByDate, onStatusChange, onDelete }) {
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="-mx-6 px-6 overflow-x-auto sm:mx-0 sm:px-0 sm:overflow-visible no-scrollbar">
+    <div className="grid grid-cols-7 gap-2 min-w-[620px] sm:min-w-0">
       {weekDates.map((date, i) => {
         const appts = (apptsByDate[date] || []).filter((a) => a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time));
         return (
@@ -324,6 +326,7 @@ function WeekView({ weekDates, apptsByDate, onStatusChange, onDelete }) {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -515,8 +518,8 @@ function TabClientes() {
         <h2 className="text-xl font-bold text-white">Clientes</h2>
         <span className="text-[#444] text-sm">{clients.length} encontrados</span>
       </div>
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome ou telefone..." className="input-field flex-1" />
+      <form onSubmit={handleSearch} className="flex flex-wrap gap-2">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome ou telefone..." className="input-field flex-1 min-w-[200px]" />
         <button type="submit" className="btn-primary px-4 py-2 text-sm">Buscar</button>
         <button type="button" onClick={() => { setSearch(''); load(''); }} className="px-4 py-2 bg-[#111] border border-[#1E1E1E] text-[#555] text-sm rounded-xl hover:text-white transition-all">
           Limpar
@@ -570,12 +573,28 @@ function TabServicos() {
   const [form, setForm] = useState({ name: '', price: '', duration: '', description: '', image: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const load = () => {
     setLoading(true);
     getAllServices().then((r) => setServices(r.data)).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite reenviar o mesmo arquivo
+    if (!file) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      const r = await uploadServiceImage(file);
+      setForm((f) => ({ ...f, image: r.data.url }));
+    } catch (err) {
+      setUploadError(err.response?.data?.error || 'Erro ao enviar a imagem');
+    } finally { setUploading(false); }
+  };
 
   const openNew = () => { setForm({ name: '', price: '', duration: '', description: '', image: '' }); setEditing('new'); };
   const openEdit = (s) => { setForm({ name: s.name, price: s.price, duration: s.duration, description: s.description, image: s.image || '' }); setEditing(s); };
@@ -623,12 +642,20 @@ function TabServicos() {
             <div className="sm:col-span-2">
               <label className="text-[#444] text-xs block mb-1">Foto do serviço (opcional)</label>
               <div className="flex gap-3 items-start">
-                <input value={form.image} onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))} placeholder="URL da imagem ou /cortes/corte.jpg" className="input-field flex-1" />
-                {form.image && (
-                  <img src={form.image} alt="" className="w-14 h-14 rounded-lg object-cover border border-[#1E1E1E] shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <div className="flex-1 space-y-2">
+                  <label className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-dashed cursor-pointer transition-all text-sm ${uploading ? 'border-blue-700/50 text-blue-400' : 'border-[#2a2a2a] text-[#888] hover:border-blue-700/50 hover:text-white'}`}>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                    {uploading ? 'Enviando...' : 'Enviar foto do celular'}
+                  </label>
+                  <input value={form.image} onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))} placeholder="ou cole o link de uma imagem" className="input-field" />
+                </div>
+                {mediaUrl(form.image) && (
+                  <img src={mediaUrl(form.image)} alt="" className="w-20 h-20 rounded-lg object-cover border border-[#1E1E1E] shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 )}
               </div>
-              <p className="text-[#333] text-[11px] mt-1">Cole o link de uma foto, ou coloque o arquivo em <span className="text-[#555]">client/public/cortes/</span> e use <span className="text-[#555]">/cortes/nome.jpg</span></p>
+              {uploadError && <p className="text-red-400 text-[11px] mt-1">{uploadError}</p>}
+              <p className="text-[#333] text-[11px] mt-1">Envie uma foto direto do celular/galeria (JPG, PNG ou WEBP, até 5 MB) ou cole um link. Aparece no carrossel do site.</p>
             </div>
             <div className="sm:col-span-2 flex gap-3">
               <button type="submit" disabled={saving} className="btn-primary px-5 py-2 text-sm disabled:opacity-50">
@@ -647,8 +674,8 @@ function TabServicos() {
           {services.map((s) => (
             <div key={s.id} className={`card p-4 flex items-center justify-between transition-all ${!s.active ? 'opacity-40' : ''}`}>
               <div className="flex items-center gap-4 min-w-0">
-                {s.image
-                  ? <img src={s.image} alt="" className="w-14 h-14 rounded-lg object-cover border border-[#1E1E1E] shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                {mediaUrl(s.image)
+                  ? <img src={mediaUrl(s.image)} alt="" className="w-14 h-14 rounded-lg object-cover border border-[#1E1E1E] shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   : <div className="w-14 h-14 rounded-lg bg-[#161616] border border-[#1E1E1E] flex items-center justify-center shrink-0 text-[#333] text-xs">sem foto</div>
                 }
                 <div className="min-w-0">

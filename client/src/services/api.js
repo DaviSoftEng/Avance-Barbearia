@@ -1,6 +1,21 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api' });
+// Sem VITE_API_URL definido, a API é buscada no mesmo host que serve o site
+// (assim funciona em localhost no PC e pelo IP da rede no celular, sem hardcode).
+const baseURL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
+const api = axios.create({ baseURL });
+
+// Origem da API sem o "/api" — usada para montar URLs de imagens enviadas
+export const apiOrigin = baseURL.replace(/\/api\/?$/, '');
+
+// Resolve o caminho de imagem do serviço para uma URL utilizável:
+// http(s):// → externo (como está) · /uploads/ → backend · /cortes/ etc → próprio site
+export function mediaUrl(p) {
+  if (!p) return null;
+  if (/^https?:\/\//i.test(p)) return p;
+  if (p.startsWith('/uploads/')) return apiOrigin + p;
+  return p;
+}
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -48,6 +63,11 @@ export const getClients = (search) => api.get('/appointments/clients', { params:
 // Admin - Services
 export const getAllServices = () => api.get('/services/all');
 export const createService = (data) => api.post('/services', data);
+export const uploadServiceImage = (file) => {
+  const fd = new FormData();
+  fd.append('image', file);
+  return api.post('/services/upload', fd);
+};
 export const updateService = (id, data) => api.put(`/services/${id}`, data);
 export const deleteService = (id) => api.delete(`/services/${id}`);
 

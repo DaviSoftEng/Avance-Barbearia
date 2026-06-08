@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getServices, getBusinessHours } from '../services/api';
+import { getServices, getBusinessHours, mediaUrl } from '../services/api';
 import { useInView } from '../hooks/useInView';
 
 function Reveal({ children, className = '', delay = '' }) {
@@ -35,7 +35,7 @@ const IMAGE_FALLBACK = {
 };
 
 function resolveImage(s) {
-  return s.image || IMAGE_FALLBACK[s.name?.toLowerCase()] || null;
+  return mediaUrl(s.image) || IMAGE_FALLBACK[s.name?.toLowerCase()] || null;
 }
 
 // Dados de contato — preencha whatsapp e email quando tiver
@@ -101,7 +101,7 @@ export default function Home() {
 
         {/* Conteúdo */}
         <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pt-36 pb-16 flex flex-col justify-between min-h-screen">
-          <div className="relative">
+          <div className="relative min-w-0 max-w-full">
             <p className="section-label mb-8" style={{ animation: 'fadeInUp 0.7s ease 0.1s both' }}>
               Barbearia Avance · Ryann França
             </p>
@@ -112,10 +112,10 @@ export default function Home() {
               Estilo,<br />Autoestima &<br />
               <span className="text-blue-500">Confiança.</span>
             </h1>
-            <p className="text-white/70 text-lg mt-10 max-w-md leading-relaxed" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s both' }}>
+            <p className="text-white/70 text-lg mt-10 leading-relaxed drop-shadow-[0_1px_10px_rgba(0,0,0,0.85)]" style={{ maxWidth: 'min(28rem, 100vw - 3rem)', animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.35s both' }}>
               Agendamento online para quem valoriza o próprio tempo. Escolha o horário, apareça, saia impecável.
             </p>
-            <div className="flex items-center gap-5 mt-10" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.45s both' }}>
+            <div className="flex flex-wrap items-center gap-4 sm:gap-5 mt-10" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.45s both' }}>
               <Link to="/agendar" className="btn-primary px-7 py-3.5 text-sm relative overflow-hidden group">
                 <span className="relative z-10">Agendar agora</span>
                 <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -126,24 +126,24 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative flex items-end justify-between mt-20 border-t border-white/10 pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
-            <div className="flex gap-10 sm:gap-12">
+          <div className="relative flex items-end justify-between gap-6 mt-12 sm:mt-20 border-t border-white/10 pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
+            <div className="flex flex-wrap gap-x-6 gap-y-4 sm:gap-12">
               {[['Heliópolis', 'Belford Roxo · RJ'], ['Ter a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
                 <div key={l}>
-                  <p className="text-white font-bold text-lg sm:text-2xl">{v}</p>
+                  <p className="text-white font-bold text-base sm:text-2xl">{v}</p>
                   <p className="text-white/45 text-xs mt-0.5">{l}</p>
                 </div>
               ))}
             </div>
-            <img src="/logo.jpeg" alt="Avance" className="h-14 w-14 rounded-full object-cover opacity-70 border border-white/10" />
+            <img src="/logo.jpeg" alt="Avance" className="hidden sm:block h-14 w-14 rounded-full object-cover opacity-70 border border-white/10 shrink-0" />
           </div>
         </div>
       </section>
 
       {/* ── SERVIÇOS ── */}
       <SectionDivider />
-      <section id="servicos">
-        <div className="max-w-6xl mx-auto px-6 py-24">
+      <section id="servicos" className="scroll-mt-20">
+        <div className="max-w-6xl mx-auto px-6 py-16 sm:py-24">
           <Reveal className="text-center max-w-xl mx-auto mb-12">
             <p className="section-label mb-4">O que fazemos</p>
             <h2 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
@@ -180,9 +180,9 @@ export default function Home() {
 
       {/* ── SOBRE ── */}
       <SectionDivider />
-      <section id="sobre">
-        <div className="max-w-6xl mx-auto px-6 py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section id="sobre" className="scroll-mt-20">
+        <div className="max-w-6xl mx-auto px-6 py-16 sm:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
             {/* Foto */}
             <Reveal>
@@ -241,9 +241,9 @@ export default function Home() {
 
       {/* ── LOCALIZAÇÃO ── */}
       <SectionDivider />
-      <section id="localizacao">
-        <div className="max-w-6xl mx-auto px-6 py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+      <section id="localizacao" className="scroll-mt-20">
+        <div className="max-w-6xl mx-auto px-6 py-16 sm:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
 
             <Reveal>
               <p className="section-label mb-5">Onde estamos</p>
@@ -343,7 +343,7 @@ export default function Home() {
       <SectionDivider />
       <section>
         <Reveal>
-          <div className="max-w-6xl mx-auto px-6 py-24">
+          <div className="max-w-6xl mx-auto px-6 py-16 sm:py-24">
             <div className="relative rounded-3xl border border-[#1E1E1E] p-10 sm:p-14 overflow-hidden hover:border-blue-600/20 transition-colors duration-500 group">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-600/0 to-blue-600/0 group-hover:from-blue-600/[0.04] group-hover:to-transparent transition-all duration-700 pointer-events-none rounded-3xl" />
               <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
@@ -534,22 +534,25 @@ function ServicesCarousel({ services, onOpen }) {
 
   return (
     <div className="group relative overflow-hidden">
-      {/* Fades nas bordas para o efeito de esteira */}
-      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-16 z-10 bg-gradient-to-r from-[#0A0A0A] to-transparent" />
-      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-16 z-10 bg-gradient-to-l from-[#0A0A0A] to-transparent" />
+      {/* Fades nas bordas para o efeito de esteira (menores no celular) */}
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 sm:w-16 z-10 bg-gradient-to-r from-[#0A0A0A] to-transparent" />
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 sm:w-16 z-10 bg-gradient-to-l from-[#0A0A0A] to-transparent" />
 
       <div
         className="flex w-max animate-marquee group-hover:[animation-play-state:paused]"
         style={{ animationDuration: `${duration}s` }}
       >
         {loop.map((s, i) => (
-          <div key={`${s.id}-${i}`} className="shrink-0 w-[58%] sm:w-[280px] lg:w-[260px] mr-4">
+          <div key={`${s.id}-${i}`} className="shrink-0 w-[170px] sm:w-[280px] lg:w-[260px] mr-3 sm:mr-4">
             <ServiceCard s={s} onOpen={onOpen} />
           </div>
         ))}
       </div>
 
-      <p className="text-center text-[#333] text-xs mt-4">Passe o mouse para pausar · toque em um serviço para ver detalhes</p>
+      <p className="text-center text-[#333] text-xs mt-4">
+        <span className="sm:hidden">Toque em um serviço para ver detalhes</span>
+        <span className="hidden sm:inline">Passe o mouse para pausar · toque em um serviço para ver detalhes</span>
+      </p>
     </div>
   );
 }

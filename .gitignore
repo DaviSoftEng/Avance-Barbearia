@@ -14,6 +14,9 @@ client/.env.production
 server/prisma/dev.db
 server/prisma/dev.db-journal
 
+# Uploads (fotos enviadas pelo painel)
+server/uploads/
+
 # Build output
 client/dist/
 

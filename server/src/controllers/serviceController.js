@@ -58,6 +58,12 @@ exports.updateService = async (req, res) => {
   }
 };
 
+exports.uploadImage = (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+  audit(req, 'service.uploadImage', { file: req.file.filename, size: req.file.size });
+  res.status(201).json({ url: `/uploads/${req.file.filename}` });
+};
+
 exports.deleteService = async (req, res) => {
   try {
     await prisma.service.update({ where: { id: parseInt(req.params.id) }, data: { active: false } });
