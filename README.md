@@ -7,6 +7,9 @@ painel administrativo — agenda, clientes, serviços, fotos e configurações.
 > Site público + painel do barbeiro, em uma aplicação React + Node, pronta para
 > produção (deploy de serviço único no Railway).
 
+### 🔗 Acesse o sistema no ar
+**[avance-barbearia-production.up.railway.app](https://avance-barbearia-production.up.railway.app/)**
+
 ---
 
 ## ✨ Funcionalidades
@@ -135,6 +138,8 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 Roda como **um único serviço** no Railway (o Express serve a API e o site buildado),
 com banco e fotos em um **volume persistente**. O passo a passo completo está em
 **[DEPLOY.md](DEPLOY.md)**.
+
+🔗 Produção: **https://avance-barbearia-production.up.railway.app/**
 
 ---
 
