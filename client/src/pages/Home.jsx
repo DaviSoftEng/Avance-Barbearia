@@ -43,7 +43,7 @@ const CONTACT = {
   whatsapp: '',                 // só números com DDI/DDD, ex: '5521999999999'
   email: '',                    // ex: 'contato@barbeariaavance.com'
   instagram: 'barbearia.avance',
-  addressLine1: 'R. Tupinambás, 16 — Heliópolis',
+  addressLine1: 'Rua Tupinambás, 16 — Jardim América',
   addressLine2: 'Belford Roxo · RJ, 26140-330',
   mapsUrl: 'https://maps.google.com/?q=R.+Tupinambás,+16,+Heliópolis,+Belford+Roxo,+RJ',
 };
@@ -128,7 +128,7 @@ export default function Home() {
 
           <div className="relative flex items-end justify-between gap-6 mt-12 sm:mt-20 border-t border-white/10 pt-8" style={{ animation: 'fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) 0.55s both' }}>
             <div className="flex flex-wrap gap-x-6 gap-y-4 sm:gap-12">
-              {[['Heliópolis', 'Belford Roxo · RJ'], ['Ter a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
+              {[['Jardim América', 'Belford Roxo · RJ'], ['Ter a Sáb', 'Com hora marcada'], ['Online', 'Agende em segundos']].map(([v, l]) => (
                 <div key={l}>
                   <p className="text-white font-bold text-base sm:text-2xl">{v}</p>
                   <p className="text-white/45 text-xs mt-0.5">{l}</p>
@@ -259,7 +259,7 @@ export default function Home() {
                     target="_blank" rel="noreferrer"
                     className="text-white font-medium hover:text-blue-400 transition-colors block"
                   >
-                    R. Tupinambás, 16 — Heliópolis
+                    Rua Tupinambás, 16 — Jardim América
                   </a>
                   <p className="text-[#555] text-sm mt-0.5">Belford Roxo — RJ, 26140-330</p>
                 </div>
@@ -443,7 +443,7 @@ export default function Home() {
 
           <div className="border-t border-[#141414] mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             <span className="text-[#333] text-xs">© {new Date().getFullYear()} Barbearia Avance · Ryann França — Todos os direitos reservados.</span>
-            <span className="text-[#222] text-xs">Heliópolis · Belford Roxo — RJ</span>
+            <span className="text-[#222] text-xs">Jardim América · Belford Roxo — RJ</span>
           </div>
         </div>
       </footer>
