@@ -1,5 +1,35 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
+const { getBookingWindowDays } = require('../utils/settings');
+
+// Configurações de agendamento (público — o site precisa saber a janela)
+exports.getSettings = async (req, res) => {
+  try {
+    res.json({ bookingWindowDays: await getBookingWindowDays() });
+  } catch (e) {
+    console.error('[getSettings]', e);
+    res.status(500).json({ error: 'Erro ao buscar configurações' });
+  }
+};
+
+exports.updateSettings = async (req, res) => {
+  const n = parseInt(req.body.bookingWindowDays, 10);
+  if (!Number.isFinite(n) || n < 1 || n > 365) {
+    return res.status(400).json({ error: 'Janela inválida (use de 1 a 365 dias)' });
+  }
+  try {
+    await prisma.setting.upsert({
+      where: { key: 'bookingWindowDays' },
+      update: { value: String(n) },
+      create: { key: 'bookingWindowDays', value: String(n) },
+    });
+    audit(req, 'settings.update', { bookingWindowDays: n });
+    res.json({ bookingWindowDays: n });
+  } catch (e) {
+    console.error('[updateSettings]', e);
+    res.status(500).json({ error: 'Erro ao salvar configurações' });
+  }
+};
 
 exports.getBusinessHours = async (req, res) => {
   try {

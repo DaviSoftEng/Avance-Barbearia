@@ -15,6 +15,12 @@ model User {
   createdAt DateTime @default(now())
 }
 
+// Configurações gerais (chave/valor). Ex.: bookingWindowDays
+model Setting {
+  key   String @id
+  value String
+}
+
 model Service {
   id           Int                  @id @default(autoincrement())
   name         String

@@ -1,6 +1,9 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
 const { lunchBreak } = require('../utils/businessRules');
+const { getBookingWindowDays, addDaysStr } = require('../utils/settings');
+
+const TZ = 'America/Sao_Paulo';
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -26,6 +29,13 @@ function generateSlots(openTime, closeTime, interval = SLOT_INTERVAL) {
 exports.getAvailableSlots = async (req, res) => {
   const { date, duration } = req.query;
   if (!date) return res.status(400).json({ error: 'Data é obrigatória' });
+
+  // Fora da janela de agendamento (passado ou além de hoje + N dias) → sem horários
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+  const windowDays = await getBookingWindowDays();
+  if (date < today || date > addDaysStr(today, windowDays)) {
+    return res.json({ date, available: [], outOfWindow: true });
+  }
 
   const requestedDuration = Math.max(parseInt(duration) || 30, 30);
 

@@ -48,6 +48,7 @@ export const lookupAppointment = (phone) => api.get(`/appointments/lookup?phone=
 export const updateAppointment = (id, data) => api.put(`/appointments/${id}`, data);
 export const cancelAppointmentPublic = (id, phone) => api.patch(`/appointments/${id}/cancel-public`, { phone });
 export const getBusinessHours = () => api.get('/business/hours');
+export const getBookingSettings = () => api.get('/business/settings');
 
 // Auth
 export const login = (email, password) => api.post('/auth/login', { email, password });
@@ -78,6 +79,7 @@ export const deleteRecurringBlock = (id) => api.delete(`/slots/recurring/${id}`)
 
 // Admin - Business Hours & Day Blocks
 export const updateBusinessHours = (hours) => api.put('/business/hours', { hours });
+export const updateBookingSettings = (data) => api.put('/business/settings', data);
 export const getDayBlocks = () => api.get('/business/blocks');
 export const createDayBlock = (data) => api.post('/business/blocks', data);
 export const deleteDayBlock = (id) => api.delete(`/business/blocks/${id}`);

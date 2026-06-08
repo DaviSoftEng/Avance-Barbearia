@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getServices, getAvailableSlots, createAppointment, getBusinessHours, getDayBlocks } from '../services/api';
+import { getServices, getAvailableSlots, createAppointment, getBusinessHours, getDayBlocks, getBookingSettings } from '../services/api';
 
 const STEPS = ['Serviços', 'Data & Horário', 'Dados', 'Confirmar'];
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -24,6 +24,7 @@ export default function Booking() {
   const [slotsLoading, setSlotsLoading]   = useState(false);
   const [businessHours, setBusinessHours] = useState([]);
   const [dayBlocks, setDayBlocks]     = useState([]);
+  const [windowDays, setWindowDays]   = useState(7);
   const [calMonth, setCalMonth]       = useState(() => {
     const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
   });
@@ -34,6 +35,7 @@ export default function Booking() {
   const [error, setError]             = useState('');
 
   const today     = toISO(new Date());
+  const maxDate   = (() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + windowDays); return toISO(d); })();
   const totalPrice    = selectedServices.reduce((s, sv) => s + sv.price, 0);
   const totalDuration = selectedServices.reduce((s, sv) => s + sv.duration, 0);
 
@@ -47,8 +49,12 @@ export default function Booking() {
         if (found) setSelectedServices([found]);
       }
     }).catch(() => {});
-    Promise.all([getBusinessHours(), getDayBlocks()])
-      .then(([h, b]) => { setBusinessHours(h.data); setDayBlocks(b.data); })
+    Promise.all([getBusinessHours(), getDayBlocks(), getBookingSettings()])
+      .then(([h, b, s]) => {
+        setBusinessHours(h.data);
+        setDayBlocks(b.data);
+        if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
+      })
       .catch(() => {});
   }, []);
 
@@ -80,6 +86,7 @@ export default function Booking() {
 
   const isDayUnavailable = (dateStr) => {
     if (dateStr < today) return true;
+    if (dateStr > maxDate) return true; // além da janela de agendamento
     const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
     const bh = businessHours.find((h) => h.dayOfWeek === dayOfWeek);
     if (bh && !bh.isOpen) return true;
@@ -260,6 +267,7 @@ export default function Booking() {
                   <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-600" /><span className="text-[#444] text-xs">Selecionado</span></div>
                   <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#1a1a1a] border border-[#2a2a2a]" /><span className="text-[#444] text-xs">Fechado / Passado</span></div>
                 </div>
+                <p className="text-[#333] text-[11px] mt-3">Agenda aberta para os próximos {windowDays} dias.</p>
               </div>
 
               {/* Horários */}

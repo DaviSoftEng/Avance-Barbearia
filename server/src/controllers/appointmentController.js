@@ -1,6 +1,7 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
 const { lunchBreak } = require('../utils/businessRules');
+const { getBookingWindowDays, addDaysStr } = require('../utils/settings');
 
 const TZ = 'America/Sao_Paulo';
 
@@ -40,6 +41,17 @@ exports.createAppointment = async (req, res) => {
   }
   if (!/^\d{2}:\d{2}$/.test(time)) {
     return res.status(400).json({ error: 'Horário inválido' });
+  }
+
+  // Janela de agendamento: hoje até hoje + N dias (não permite passado nem datas distantes)
+  const today = brToday();
+  if (date < today) {
+    return res.status(409).json({ error: 'Não é possível agendar em data passada' });
+  }
+  const windowDays = await getBookingWindowDays();
+  const maxDate = addDaysStr(today, windowDays);
+  if (date > maxDate) {
+    return res.status(409).json({ error: `A agenda está aberta só até ${maxDate.split('-').reverse().join('/')}` });
   }
 
   try {

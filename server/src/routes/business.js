@@ -7,8 +7,12 @@ const {
   getDayBlocks,
   createDayBlock,
   deleteDayBlock,
+  getSettings,
+  updateSettings,
 } = require('../controllers/businessController');
 
+router.get('/settings', getSettings);
+router.put('/settings', auth, updateSettings);
 router.get('/hours', getBusinessHours);
 router.put('/hours', auth, updateBusinessHours);
 router.get('/blocks', auth, getDayBlocks);

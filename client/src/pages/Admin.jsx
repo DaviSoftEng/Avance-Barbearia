@@ -6,6 +6,7 @@ import {
   getAllServices, createService, updateService, deleteService, uploadServiceImage,
   getRecurringBlocks, createRecurringBlock, deleteRecurringBlock,
   getBusinessHours, updateBusinessHours, getDayBlocks, createDayBlock, deleteDayBlock,
+  getBookingSettings, updateBookingSettings,
 } from '../services/api';
 import { mediaUrl } from '../services/api';
 
@@ -712,15 +713,26 @@ function TabConfig() {
   const [saving, setSaving] = useState(false);
   const [newBlock, setNewBlock] = useState({ date: '', reason: '', startTime: '', endTime: '' });
   const [newRecurring, setNewRecurring] = useState({ clientName: '', dayOfWeek: '1', time: '', notes: '' });
+  const [windowDays, setWindowDays] = useState(7);
+  const [savingWindow, setSavingWindow] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
-    Promise.all([getBusinessHours(), getDayBlocks(), getRecurringBlocks()])
-      .then(([h, b, r]) => { setHours(h.data); setBlocks(b.data); setRecurring(r.data); })
+    Promise.all([getBusinessHours(), getDayBlocks(), getRecurringBlocks(), getBookingSettings()])
+      .then(([h, b, r, s]) => {
+        setHours(h.data); setBlocks(b.data); setRecurring(r.data);
+        if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
+      })
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
+
+  const saveWindow = async () => {
+    setSavingWindow(true);
+    try { await updateBookingSettings({ bookingWindowDays: Number(windowDays) }); }
+    finally { setSavingWindow(false); }
+  };
 
   const updateHour = (idx, field, value) => setHours((prev) => prev.map((h, i) => i === idx ? { ...h, [field]: value } : h));
 
@@ -749,6 +761,29 @@ function TabConfig() {
   return (
     <div className="space-y-10">
       <h2 className="text-xl font-bold text-white">Configurações</h2>
+
+      {/* Janela de agendamento */}
+      <section className="card p-5">
+        <h3 className="text-white font-semibold mb-1">Janela de agendamento</h3>
+        <p className="text-[#444] text-xs mb-5">Até quantos dias à frente o cliente pode marcar (contados a partir de hoje). A janela anda sozinha todo dia.</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-[#333] text-xs block mb-1">Dias à frente</label>
+            <input
+              type="number"
+              min="1"
+              max="365"
+              value={windowDays}
+              onChange={(e) => setWindowDays(e.target.value)}
+              className="input-field w-28"
+            />
+          </div>
+          <button onClick={saveWindow} disabled={savingWindow} className="btn-primary px-5 py-2.5 text-sm disabled:opacity-50">
+            {savingWindow ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+        <p className="text-[#333] text-[11px] mt-3">Ex.: <span className="text-[#555]">7</span> = cliente marca só desta semana pra próxima; <span className="text-[#555]">14</span> = até duas semanas à frente.</p>
+      </section>
 
       {/* Horários */}
       <section className="card p-5">
