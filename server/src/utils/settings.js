@@ -13,6 +13,16 @@ async function getBookingWindowDays() {
   }
 }
 
+// WhatsApp da barbearia (só dígitos, com DDI 55). Vazio se não configurado.
+async function getWhatsapp() {
+  try {
+    const s = await prisma.setting.findUnique({ where: { key: 'whatsapp' } });
+    return s ? s.value : '';
+  } catch {
+    return '';
+  }
+}
+
 // Soma dias a uma data "YYYY-MM-DD" e devolve "YYYY-MM-DD" (math em UTC, estável quanto a DST)
 function addDaysStr(ymd, days) {
   const d = new Date(ymd + 'T12:00:00Z');
@@ -20,4 +30,4 @@ function addDaysStr(ymd, days) {
   return d.toISOString().slice(0, 10);
 }
 
-module.exports = { getBookingWindowDays, addDaysStr, DEFAULT_BOOKING_WINDOW_DAYS };
+module.exports = { getBookingWindowDays, getWhatsapp, addDaysStr, DEFAULT_BOOKING_WINDOW_DAYS };

@@ -716,6 +716,7 @@ function TabConfig() {
   const [newBlock, setNewBlock] = useState({ date: '', reason: '', startTime: '', endTime: '' });
   const [newRecurring, setNewRecurring] = useState({ clientName: '', dayOfWeek: '1', time: '', notes: '' });
   const [windowDays, setWindowDays] = useState(7);
+  const [whatsapp, setWhatsapp] = useState('');
   const [savingWindow, setSavingWindow] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -725,6 +726,7 @@ function TabConfig() {
       .then(([h, b, r, s]) => {
         setHours(h.data); setBlocks(b.data); setRecurring(r.data);
         if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
+        if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
       })
       .finally(() => setLoading(false));
   };
@@ -732,7 +734,7 @@ function TabConfig() {
 
   const saveWindow = async () => {
     setSavingWindow(true);
-    try { await updateBookingSettings({ bookingWindowDays: Number(windowDays) }); }
+    try { await updateBookingSettings({ bookingWindowDays: Number(windowDays), whatsapp }); }
     finally { setSavingWindow(false); }
   };
 
@@ -764,11 +766,11 @@ function TabConfig() {
     <div className="space-y-10">
       <h2 className="text-xl font-bold text-white">Configurações</h2>
 
-      {/* Janela de agendamento */}
+      {/* Agendamento e contato */}
       <section className="card p-5">
-        <h3 className="text-white font-semibold mb-1">Janela de agendamento</h3>
-        <p className="text-[#444] text-xs mb-5">Até quantos dias à frente o cliente pode marcar (contados a partir de hoje). A janela anda sozinha todo dia.</p>
-        <div className="flex flex-wrap items-end gap-3">
+        <h3 className="text-white font-semibold mb-1">Agendamento</h3>
+        <p className="text-[#444] text-xs mb-5">Janela de horários e o WhatsApp que recebe as confirmações dos clientes.</p>
+        <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="text-[#333] text-xs block mb-1">Dias à frente</label>
             <input
@@ -780,11 +782,21 @@ function TabConfig() {
               className="input-field w-28"
             />
           </div>
+          <div>
+            <label className="text-[#333] text-xs block mb-1">WhatsApp da barbearia</label>
+            <input
+              type="tel"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              placeholder="(21) 99999-9999"
+              className="input-field w-48"
+            />
+          </div>
           <button onClick={saveWindow} disabled={savingWindow} className="btn-primary px-5 py-2.5 text-sm disabled:opacity-50">
             {savingWindow ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
-        <p className="text-[#333] text-[11px] mt-3">Ex.: <span className="text-[#555]">7</span> = cliente marca só desta semana pra próxima; <span className="text-[#555]">14</span> = até duas semanas à frente.</p>
+        <p className="text-[#333] text-[11px] mt-3">A janela anda sozinha todo dia (ex.: <span className="text-[#555]">7</span> = próxima semana). O <span className="text-[#555]">WhatsApp</span> recebe a confirmação que o cliente envia ao finalizar o agendamento.</p>
       </section>
 
       {/* Horários */}

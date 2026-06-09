@@ -25,6 +25,7 @@ export default function Booking() {
   const [businessHours, setBusinessHours] = useState([]);
   const [dayBlocks, setDayBlocks]     = useState([]);
   const [windowDays, setWindowDays]   = useState(7);
+  const [whatsapp, setWhatsapp]       = useState('');
   const [calMonth, setCalMonth]       = useState(() => {
     const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
   });
@@ -54,6 +55,7 @@ export default function Booking() {
         setBusinessHours(h.data);
         setDayBlocks(b.data);
         if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
+        if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
       })
       .catch(() => {});
   }, []);
@@ -121,6 +123,16 @@ export default function Booking() {
   // ─── Tela de sucesso ───────────────────────────────────────────────────────
   if (success) {
     const apptServices = bookedAppointment.services?.map((as) => as.service) || [];
+    const dataFmt = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const waMsg =
+      `Olá! Acabei de confirmar meu agendamento ✅\n\n` +
+      `👤 Nome: ${bookedAppointment.clientName}\n` +
+      `📱 Telefone: ${bookedAppointment.clientPhone}\n` +
+      `✂️ Serviço: ${apptServices.map((s) => s.name).join(' + ') || '—'}\n` +
+      `💰 Valor: ${fmtCurrency(bookedAppointment.price)}\n` +
+      `📅 Data: ${dataFmt}\n` +
+      `🕐 Horário: ${selectedTime}`;
+    const waUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(waMsg)}` : null;
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6">
         <div className="w-full max-w-md">
@@ -149,7 +161,21 @@ export default function Booking() {
               <SummaryRow label="Total" value={fmtCurrency(bookedAppointment.price)} accent large />
             </div>
           </div>
-          <button onClick={reset} className="btn-primary w-full py-3 text-sm">Fazer outro agendamento</button>
+          {waUrl && (
+            <>
+              <p className="text-[#555] text-xs text-center mb-2">Toque abaixo para confirmar com a barbearia 👇</p>
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 mb-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors"
+              >
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.738-.981z"/></svg>
+                Confirmar no WhatsApp
+              </a>
+            </>
+          )}
+          <button onClick={reset} className={`w-full py-3 text-sm rounded-xl transition-all ${waUrl ? 'bg-[#111] border border-[#1E1E1E] text-[#888] hover:text-white' : 'btn-primary'}`}>Fazer outro agendamento</button>
         </div>
       </div>
     );

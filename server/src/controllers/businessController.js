@@ -1,11 +1,15 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
-const { getBookingWindowDays } = require('../utils/settings');
+const { getBookingWindowDays, getWhatsapp } = require('../utils/settings');
 
-// Configurações de agendamento (público — o site precisa saber a janela)
+async function setKey(key, value) {
+  await prisma.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
+}
+
+// Configurações de agendamento (público — o site precisa saber a janela e o WhatsApp)
 exports.getSettings = async (req, res) => {
   try {
-    res.json({ bookingWindowDays: await getBookingWindowDays() });
+    res.json({ bookingWindowDays: await getBookingWindowDays(), whatsapp: await getWhatsapp() });
   } catch (e) {
     console.error('[getSettings]', e);
     res.status(500).json({ error: 'Erro ao buscar configurações' });
@@ -13,18 +17,25 @@ exports.getSettings = async (req, res) => {
 };
 
 exports.updateSettings = async (req, res) => {
-  const n = parseInt(req.body.bookingWindowDays, 10);
-  if (!Number.isFinite(n) || n < 1 || n > 365) {
-    return res.status(400).json({ error: 'Janela inválida (use de 1 a 365 dias)' });
-  }
+  const { bookingWindowDays, whatsapp } = req.body;
   try {
-    await prisma.setting.upsert({
-      where: { key: 'bookingWindowDays' },
-      update: { value: String(n) },
-      create: { key: 'bookingWindowDays', value: String(n) },
-    });
-    audit(req, 'settings.update', { bookingWindowDays: n });
-    res.json({ bookingWindowDays: n });
+    if (bookingWindowDays !== undefined) {
+      const n = parseInt(bookingWindowDays, 10);
+      if (!Number.isFinite(n) || n < 1 || n > 365) {
+        return res.status(400).json({ error: 'Janela inválida (use de 1 a 365 dias)' });
+      }
+      await setKey('bookingWindowDays', String(n));
+    }
+    if (whatsapp !== undefined) {
+      // Guarda só dígitos; garante DDI 55 quando o número tem DDD + 8/9 dígitos
+      let digits = String(whatsapp).replace(/\D/g, '');
+      if (digits && !digits.startsWith('55') && digits.length >= 10 && digits.length <= 11) {
+        digits = '55' + digits;
+      }
+      await setKey('whatsapp', digits);
+    }
+    audit(req, 'settings.update', { bookingWindowDays, whatsappUpdated: whatsapp !== undefined });
+    res.json({ bookingWindowDays: await getBookingWindowDays(), whatsapp: await getWhatsapp() });
   } catch (e) {
     console.error('[updateSettings]', e);
     res.status(500).json({ error: 'Erro ao salvar configurações' });
