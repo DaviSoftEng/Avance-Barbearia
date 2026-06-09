@@ -430,6 +430,8 @@ function FreeGap({ mins, from, to }) {
 function ApptRow({ a, onEdit, onStatusChange, onDelete }) {
   const end = addMin(a.time, a.totalDuration || 0);
   const st = STATUS_CONFIG[a.status];
+  const waMsg = `Olá ${a.clientName}! 👋 Sobre seu agendamento: ${apptServiceNames(a)} — ${fmt(a.date)} às ${a.time}. Qualquer dúvida, é só me chamar por aqui. 😊`;
+  const waHref = `${waLink(a.clientPhone)}?text=${encodeURIComponent(waMsg)}`;
   return (
     <div className={`card border ${st?.bg} p-4`}>
       <div className="flex gap-4">
@@ -451,7 +453,7 @@ function ApptRow({ a, onEdit, onStatusChange, onDelete }) {
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
             <span className="text-blue-400 text-sm font-semibold">{fmtCurrency(a.price)}</span>
             <a
-              href={waLink(a.clientPhone)}
+              href={waHref}
               target="_blank"
               rel="noreferrer"
               className="text-[#666] hover:text-green-400 text-xs inline-flex items-center gap-1 transition-colors"
