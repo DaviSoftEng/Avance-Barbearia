@@ -50,14 +50,14 @@ export default function Booking() {
         if (found) setSelectedServices([found]);
       }
     }).catch(() => {});
-    Promise.all([getBusinessHours(), getDayBlocks(), getBookingSettings()])
-      .then(([h, b, s]) => {
-        setBusinessHours(h.data);
-        setDayBlocks(b.data);
-        if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
-        if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
-      })
-      .catch(() => {});
+    // Chamadas independentes: a falha de uma não pode impedir as outras
+    // (a página é pública — não deve depender de rota protegida por login)
+    getBusinessHours().then((h) => setBusinessHours(h.data)).catch(() => {});
+    getDayBlocks().then((b) => setDayBlocks(b.data)).catch(() => {});
+    getBookingSettings().then((s) => {
+      if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
+      if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
+    }).catch(() => {});
   }, []);
 
   const toggleService = (service) => {
