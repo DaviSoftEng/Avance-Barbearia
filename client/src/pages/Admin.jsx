@@ -82,9 +82,11 @@ export default function Admin() {
       {/* Header */}
       <div className="border-b border-[#141414] px-6 py-4 flex items-center justify-between sticky top-[73px] bg-[#0A0A0A] z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
-            {user?.name?.[0] || 'R'}
-          </div>
+          <img
+            src="/barbeiro.png"
+            alt={user?.name || 'Barbeiro'}
+            className="w-8 h-8 rounded-full object-cover object-top bg-blue-600"
+          />
           <div>
             <p className="text-white text-sm font-medium">{user?.name}</p>
             <p className="text-[#444] text-xs">Painel de controle</p>
