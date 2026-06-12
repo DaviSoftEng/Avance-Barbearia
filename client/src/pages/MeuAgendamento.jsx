@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { lookupAppointment, cancelAppointmentPublic } from '../services/api';
+import { maskPhone, isValidBRPhone } from '../utils/phone';
 
 const STATUS = {
   confirmed: { label: 'Confirmado', color: 'text-blue-400' },
@@ -24,7 +25,7 @@ export default function MeuAgendamento() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!phone.trim()) return;
+    if (!isValidBRPhone(phone)) { setError('Digite um número válido com DDD (ex: (21) 98035-0062).'); return; }
     setLoading(true);
     setError('');
     setAppointments(null);
@@ -62,9 +63,10 @@ export default function MeuAgendamento() {
             <label className="text-[#444] text-xs block mb-2">Telefone / WhatsApp</label>
             <input
               type="tel"
-              placeholder="(11) 99999-9999"
+              inputMode="numeric"
+              placeholder="(21) 98035-0062"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(maskPhone(e.target.value))}
               className="input-field"
               required
             />

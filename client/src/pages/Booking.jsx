@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { maskPhone, formatPhone, isValidBRPhone } from '../utils/phone';
 import { getServices, getAvailableSlots, createAppointment, getBusinessHours, getDayBlocks, getBookingSettings } from '../services/api';
 
 const STEPS = ['Serviços', 'Data & Horário', 'Dados', 'Confirmar'];
@@ -127,7 +128,7 @@ export default function Booking() {
     const waMsg =
       `Olá! Acabei de confirmar meu agendamento ✅\n\n` +
       `👤 Nome: ${bookedAppointment.clientName}\n` +
-      `📱 Telefone: ${bookedAppointment.clientPhone}\n` +
+      `📱 Telefone: ${formatPhone(bookedAppointment.clientPhone)}\n` +
       `✂️ Serviço: ${apptServices.map((s) => s.name).join(' + ') || '—'}\n` +
       `💰 Valor: ${fmtCurrency(bookedAppointment.price)}\n` +
       `📅 Data: ${dataFmt}\n` +
@@ -363,11 +364,14 @@ export default function Booking() {
               </div>
               <div>
                 <label className="text-[#444] text-xs block mb-2">Telefone / WhatsApp</label>
-                <input type="tel" placeholder="(11) 99999-9999" value={form.phone}
-                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="input-field" />
+                <input type="tel" inputMode="numeric" placeholder="(21) 98035-0062" value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: maskPhone(e.target.value) }))} className="input-field" />
+                {form.phone && !isValidBRPhone(form.phone) && (
+                  <p className="text-red-400 text-xs mt-1.5">Digite um número válido com DDD (ex: (21) 98035-0062).</p>
+                )}
               </div>
             </div>
-            <StepNav onBack={() => setStep(1)} onNext={() => setStep(3)} disableNext={!form.name || !form.phone} />
+            <StepNav onBack={() => setStep(1)} onNext={() => setStep(3)} disableNext={!form.name || !isValidBRPhone(form.phone)} />
           </div>
         )}
 

@@ -84,9 +84,11 @@ async function main() {
   console.log('\n── LOOKUP / CANCEL PÚBLICO ──────');
   const lookup = await req('GET', `/appointments/lookup?phone=21999990000`);
   ok('Lookup por telefone → encontra', lookup.status === 200 && lookup.data.length >= 1, `(${lookup.data?.length})`);
-  const cancel = await req('PATCH', `/appointments/${book.data.id}/cancel-public`);
-  ok('Cancel público → ok', cancel.status === 200 && cancel.data?.status === 'cancelled', `(got ${cancel.status})`);
-  const cancelAgain = await req('PATCH', `/appointments/${book.data.id}/cancel-public`);
+  const cancelWrong = await req('PATCH', `/appointments/${book.data.id}/cancel-public`, { phone: '21988887777' });
+  ok('Cancel com telefone errado → 404', cancelWrong.status === 404, `(got ${cancelWrong.status})`);
+  const cancel = await req('PATCH', `/appointments/${book.data.id}/cancel-public`, { phone: '21999990000' });
+  ok('Cancel público (telefone certo) → ok', cancel.status === 200 && cancel.data?.status === 'cancelled', `(got ${cancel.status})`);
+  const cancelAgain = await req('PATCH', `/appointments/${book.data.id}/cancel-public`, { phone: '21999990000' });
   ok('Cancel de já cancelado → 400', cancelAgain.status === 400, `(got ${cancelAgain.status})`);
   const lookupAfter = await req('GET', `/appointments/lookup?phone=21999990000`);
   ok('Lookup após cancelar → vazio', lookupAfter.data.length === 0, `(${lookupAfter.data?.length})`);

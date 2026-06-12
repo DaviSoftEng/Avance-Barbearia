@@ -2,6 +2,7 @@ const prisma = require('../db');
 const { audit } = require('../utils/audit');
 const { lunchBreak } = require('../utils/businessRules');
 const { getBookingWindowDays, addDaysStr } = require('../utils/settings');
+const { normalizePhone, isValidBRPhone } = require('../utils/phone');
 
 const TZ = 'America/Sao_Paulo';
 
@@ -32,9 +33,8 @@ exports.createAppointment = async (req, res) => {
     return res.status(400).json({ error: 'Serviços demais' });
   }
 
-  const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
-  if (!phoneRegex.test(clientPhone)) {
-    return res.status(400).json({ error: 'Telefone inválido' });
+  if (!isValidBRPhone(clientPhone)) {
+    return res.status(400).json({ error: 'Telefone inválido. Use DDD + número (ex: (21) 98035-0062).' });
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: 'Data inválida' });
@@ -42,6 +42,7 @@ exports.createAppointment = async (req, res) => {
   if (!/^\d{2}:\d{2}$/.test(time)) {
     return res.status(400).json({ error: 'Horário inválido' });
   }
+  const phoneDigits = normalizePhone(clientPhone);
 
   // Janela de agendamento: hoje até hoje + N dias (não permite passado nem datas distantes)
   const today = brToday();
@@ -122,7 +123,7 @@ exports.createAppointment = async (req, res) => {
       return tx.appointment.create({
         data: {
           clientName,
-          clientPhone,
+          clientPhone: phoneDigits,
           date,
           time,
           notes: notes || '',
@@ -208,16 +209,17 @@ exports.deleteAppointment = async (req, res) => {
 exports.lookupByPhone = async (req, res) => {
   const { phone } = req.query;
   if (!phone) return res.status(400).json({ error: 'Telefone é obrigatório' });
-  const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
-  if (!phoneRegex.test(phone)) return res.status(400).json({ error: 'Telefone inválido' });
+  if (!isValidBRPhone(phone)) return res.status(400).json({ error: 'Telefone inválido' });
   try {
     const today = brToday();
+    const target = normalizePhone(phone);
+    // Busca os confirmados futuros e compara por dígitos — independente de formatação
     const appointments = await prisma.appointment.findMany({
-      where: { clientPhone: phone, date: { gte: today }, status: { in: ['confirmed'] } },
+      where: { date: { gte: today }, status: { in: ['confirmed'] } },
       include: APPOINTMENT_INCLUDE,
       orderBy: [{ date: 'asc' }, { time: 'asc' }],
     });
-    res.json(appointments);
+    res.json(appointments.filter((a) => normalizePhone(a.clientPhone) === target));
   } catch (e) {
     console.error('[lookupByPhone]', e);
     res.status(500).json({ error: 'Erro ao buscar agendamentos' });
@@ -317,8 +319,7 @@ exports.updateAppointment = async (req, res) => {
   if (serviceIds.length > 20) {
     return res.status(400).json({ error: 'Serviços demais' });
   }
-  const phoneRegex = /^[\d\s\(\)\-\+]{7,20}$/;
-  if (!phoneRegex.test(clientPhone)) return res.status(400).json({ error: 'Telefone inválido' });
+  if (!isValidBRPhone(clientPhone)) return res.status(400).json({ error: 'Telefone inválido. Use DDD + número (ex: (21) 98035-0062).' });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'Data inválida' });
   if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: 'Horário inválido' });
 
@@ -376,7 +377,7 @@ exports.updateAppointment = async (req, res) => {
         where: { id },
         data: {
           clientName,
-          clientPhone,
+          clientPhone: normalizePhone(clientPhone),
           date,
           time,
           notes: notes || '',
@@ -411,7 +412,7 @@ exports.cancelAppointmentPublic = async (req, res) => {
   try {
     const appt = await prisma.appointment.findUnique({ where: { id } });
     // Mesma resposta para "não existe" e "telefone não confere" — não revela existência de id
-    if (!appt || appt.clientPhone !== phone.trim()) {
+    if (!appt || normalizePhone(appt.clientPhone) !== normalizePhone(phone)) {
       return res.status(404).json({ error: 'Agendamento não encontrado' });
     }
     if (appt.status !== 'confirmed') {

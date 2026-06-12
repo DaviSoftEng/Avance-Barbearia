@@ -9,6 +9,7 @@ import {
   getBookingSettings, updateBookingSettings,
 } from '../services/api';
 import { mediaUrl } from '../services/api';
+import { maskPhone, formatPhone, isValidBRPhone } from '../utils/phone';
 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -458,7 +459,7 @@ function ApptRow({ a, onEdit, onStatusChange, onDelete }) {
               rel="noreferrer"
               className="text-[#666] hover:text-green-400 text-xs inline-flex items-center gap-1 transition-colors"
             >
-              <WhatsAppIcon /> {a.clientPhone}
+              <WhatsAppIcon /> {formatPhone(a.clientPhone)}
             </a>
           </div>
 
@@ -540,7 +541,7 @@ function TabClientes() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-white font-medium">{c.clientName}</p>
-                  <p className="text-[#444] text-sm">{c.clientPhone}</p>
+                  <p className="text-[#444] text-sm">{formatPhone(c.clientPhone)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-blue-400 font-bold text-sm">{fmtCurrency(c.totalSpent)}</p>
@@ -941,7 +942,7 @@ function EditModal({ appointment, onClose, onSaved }) {
   const [allServices, setAllServices] = useState([]);
   const [form, setForm] = useState({
     clientName:  appointment.clientName,
-    clientPhone: appointment.clientPhone,
+    clientPhone: formatPhone(appointment.clientPhone),
     date:        appointment.date,
     time:        appointment.time,
     notes:       appointment.notes || '',
@@ -996,7 +997,7 @@ function EditModal({ appointment, onClose, onSaved }) {
             </div>
             <div>
               <label className="text-[#444] text-xs block mb-1">Telefone</label>
-              <input type="tel" value={form.clientPhone} onChange={(e) => setForm((f) => ({ ...f, clientPhone: e.target.value }))}
+              <input type="tel" inputMode="numeric" value={form.clientPhone} onChange={(e) => setForm((f) => ({ ...f, clientPhone: maskPhone(e.target.value) }))}
                 className="input-field" required />
             </div>
           </div>
