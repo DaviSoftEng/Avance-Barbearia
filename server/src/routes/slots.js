@@ -6,11 +6,19 @@ const {
   getRecurringBlocks,
   createRecurringBlock,
   deleteRecurringBlock,
+  getRecurringExceptions,
+  createRecurringException,
+  deleteRecurringException,
 } = require('../controllers/slotController');
 
 router.get('/available', getAvailableSlots);
 router.get('/recurring', auth, getRecurringBlocks);
 router.post('/recurring', auth, createRecurringBlock);
 router.delete('/recurring/:id', auth, validateId, deleteRecurringBlock);
+
+// Exceções da semana (adiantar/remarcar ou cancelar um fixo numa data específica)
+router.get('/exceptions', auth, getRecurringExceptions);
+router.post('/recurring/:id/exception', auth, validateId, createRecurringException);
+router.delete('/exceptions/:id', auth, validateId, deleteRecurringException);
 
 module.exports = router;

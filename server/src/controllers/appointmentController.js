@@ -1,15 +1,9 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
 const { lunchBreak } = require('../utils/businessRules');
-const { getBookingWindowDays, addDaysStr } = require('../utils/settings');
+const { getAgendaState, brToday } = require('../utils/settings');
+const { recurringOccupied } = require('../utils/recurring');
 const { normalizePhone, isValidBRPhone } = require('../utils/phone');
-
-const TZ = 'America/Sao_Paulo';
-
-// Data de "hoje" no fuso do Brasil (YYYY-MM-DD), independente do fuso do servidor
-function brToday() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: TZ });
-}
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -44,15 +38,17 @@ exports.createAppointment = async (req, res) => {
   }
   const phoneDigits = normalizePhone(clientPhone);
 
-  // Janela de agendamento: hoje até hoje + N dias (não permite passado nem datas distantes)
+  // Janela de agendamento: agenda precisa estar aberta e a data até o teto (sábado da semana)
   const today = brToday();
   if (date < today) {
     return res.status(409).json({ error: 'Não é possível agendar em data passada' });
   }
-  const windowDays = await getBookingWindowDays();
-  const maxDate = addDaysStr(today, windowDays);
-  if (date > maxDate) {
-    return res.status(409).json({ error: `A agenda está aberta só até ${maxDate.split('-').reverse().join('/')}` });
+  const agenda = await getAgendaState(today);
+  if (!agenda.open) {
+    return res.status(409).json({ error: 'A agenda está fechada no momento. Aguarde a abertura para marcar.' });
+  }
+  if (date > agenda.ceiling) {
+    return res.status(409).json({ error: `A agenda está aberta só até ${agenda.ceiling.split('-').reverse().join('/')}` });
   }
 
   try {
@@ -110,12 +106,10 @@ exports.createAppointment = async (req, res) => {
         }
       }
 
-      // Verifica conflito com horários fixos (recorrentes)
-      const recurring = await tx.recurringBlock.findMany({ where: { dayOfWeek }, select: { time: true } });
-      for (const r of recurring) {
-        const rStart = timeToMinutes(r.time);
-        const rEnd   = rStart + 30;
-        if (startMin < rEnd && endMin > rStart) {
+      // Verifica conflito com horários fixos (recorrentes), já com adiantamentos/cancelamentos da semana
+      const recurringOcc = await recurringOccupied(tx, date);
+      for (const o of recurringOcc) {
+        if (startMin < o.end && endMin > o.start) {
           throw { status: 409, error: 'Horário reservado para cliente fixo' };
         }
       }

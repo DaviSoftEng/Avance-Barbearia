@@ -79,6 +79,11 @@ export const getRecurringBlocks = () => api.get('/slots/recurring');
 export const createRecurringBlock = (data) => api.post('/slots/recurring', data);
 export const deleteRecurringBlock = (id) => api.delete(`/slots/recurring/${id}`);
 
+// Admin - Recurring Exceptions (adiantar/remarcar ou cancelar um fixo numa semana)
+export const getRecurringExceptions = () => api.get('/slots/exceptions');
+export const createRecurringException = (blockId, data) => api.post(`/slots/recurring/${blockId}/exception`, data);
+export const deleteRecurringException = (id) => api.delete(`/slots/exceptions/${id}`);
+
 // Admin - Business Hours & Day Blocks
 export const updateBusinessHours = (hours) => api.put('/business/hours', { hours });
 export const updateBookingSettings = (data) => api.put('/business/settings', data);

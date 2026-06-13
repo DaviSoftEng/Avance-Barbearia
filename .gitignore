@@ -13,6 +13,12 @@ client/.env.production
 # Database
 server/prisma/dev.db
 server/prisma/dev.db-journal
+server/prisma/*.db.bak
+
+# Scripts/arquivos de teste local (dev only — não vão para produção)
+server/prisma/seedFake.js
+server/prisma/cleanupFake.js
+server/prisma/.fake-seed-ids.json
 
 # Uploads (fotos enviadas pelo painel)
 server/uploads/

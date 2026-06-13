@@ -61,6 +61,21 @@ model RecurringBlock {
   dayOfWeek  Int
   time       String
   notes      String @default("")
+  exceptions RecurringException[]
+}
+
+// Exceção pontual de um cliente fixo numa data específica (vale só naquela semana).
+// O fixo continua valendo nas outras semanas — semana seguinte volta ao padrão sozinho.
+// type: move = adiantado/remarcado para (newDate, newTime) · cancel = não vem nesta semana
+model RecurringException {
+  id               Int            @id @default(autoincrement())
+  recurringBlockId Int
+  recurringBlock   RecurringBlock @relation(fields: [recurringBlockId], references: [id], onDelete: Cascade)
+  originalDate     String         // data da ocorrência afetada (YYYY-MM-DD)
+  type             String         @default("move")
+  newDate          String?        // destino, quando type = move
+  newTime          String?        // destino, quando type = move
+  createdAt        DateTime       @default(now())
 }
 
 // Horário de funcionamento por dia da semana (0=Dom ... 6=Sab)

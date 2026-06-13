@@ -1,9 +1,8 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
 const { lunchBreak } = require('../utils/businessRules');
-const { getBookingWindowDays, addDaysStr } = require('../utils/settings');
-
-const TZ = 'America/Sao_Paulo';
+const { getAgendaState, brToday, saturdayOnOrAfter } = require('../utils/settings');
+const { recurringOccupied } = require('../utils/recurring');
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -30,10 +29,14 @@ exports.getAvailableSlots = async (req, res) => {
   const { date, duration } = req.query;
   if (!date) return res.status(400).json({ error: 'Data é obrigatória' });
 
-  // Fora da janela de agendamento (passado ou além de hoje + N dias) → sem horários
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
-  const windowDays = await getBookingWindowDays();
-  if (date < today || date > addDaysStr(today, windowDays)) {
+  // Agenda fechada (Ryann não abriu, ou já passou do teto) → sem horários
+  const today = brToday();
+  const agenda = await getAgendaState(today);
+  if (!agenda.open) {
+    return res.json({ date, available: [], agendaClosed: true });
+  }
+  // Fora da janela: passado, ou além do teto (data escolhida pelo Ryann / sábado da semana)
+  if (date < today || date > agenda.ceiling) {
     return res.json({ date, available: [], outOfWindow: true });
   }
 
@@ -66,12 +69,8 @@ exports.getAvailableSlots = async (req, res) => {
       occupied.push({ start: s, end: s + (a.totalDuration || 30) });
     });
 
-    // Horários fixos recorrentes (30 min cada)
-    const recurring = await prisma.recurringBlock.findMany({ where: { dayOfWeek }, select: { time: true } });
-    recurring.forEach((r) => {
-      const s = timeToMinutes(r.time);
-      occupied.push({ start: s, end: s + 30 });
-    });
+    // Horários fixos recorrentes (30 min cada), já com adiantamentos/cancelamentos da semana
+    (await recurringOccupied(prisma, date)).forEach((o) => occupied.push(o));
 
     // Bloqueio parcial de horário
     if (dayBlock?.startTime && dayBlock?.endTime) {
@@ -135,5 +134,74 @@ exports.deleteRecurringBlock = async (req, res) => {
   } catch (e) {
     console.error('[deleteRecurringBlock]', e);
     res.status(500).json({ error: 'Erro ao excluir horário fixo' });
+  }
+};
+
+// ── Exceções da semana (adiantar/remarcar ou cancelar um cliente fixo numa data) ──
+
+exports.getRecurringExceptions = async (req, res) => {
+  try {
+    const exceptions = await prisma.recurringException.findMany({
+      include: { recurringBlock: true },
+      orderBy: { originalDate: 'asc' },
+    });
+    res.json(exceptions);
+  } catch (e) {
+    console.error('[getRecurringExceptions]', e);
+    res.status(500).json({ error: 'Erro ao buscar exceções' });
+  }
+};
+
+exports.createRecurringException = async (req, res) => {
+  const recurringBlockId = parseInt(req.params.id);
+  const { originalDate, type, newDate, newTime } = req.body;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(originalDate || '')) {
+    return res.status(400).json({ error: 'Data original inválida' });
+  }
+  if (!['move', 'cancel'].includes(type)) {
+    return res.status(400).json({ error: 'Tipo inválido' });
+  }
+  if (type === 'move') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate || '') || !/^\d{2}:\d{2}$/.test(newTime || '')) {
+      return res.status(400).json({ error: 'Informe o novo dia e horário' });
+    }
+    // Remarcação só dentro da mesma semana (mesmo sábado de referência)
+    if (saturdayOnOrAfter(originalDate) !== saturdayOnOrAfter(newDate)) {
+      return res.status(400).json({ error: 'A remarcação deve ser na mesma semana' });
+    }
+  }
+
+  try {
+    const block = await prisma.recurringBlock.findUnique({ where: { id: recurringBlockId } });
+    if (!block) return res.status(404).json({ error: 'Cliente fixo não encontrado' });
+
+    // Uma exceção por (fixo, data original): substitui a anterior se existir
+    await prisma.recurringException.deleteMany({ where: { recurringBlockId, originalDate } });
+    const exception = await prisma.recurringException.create({
+      data: {
+        recurringBlockId,
+        originalDate,
+        type,
+        newDate: type === 'move' ? newDate : null,
+        newTime: type === 'move' ? newTime : null,
+      },
+    });
+    audit(req, 'recurringException.create', { id: exception.id, recurringBlockId, type });
+    res.status(201).json(exception);
+  } catch (e) {
+    console.error('[createRecurringException]', e);
+    res.status(500).json({ error: 'Erro ao criar exceção' });
+  }
+};
+
+exports.deleteRecurringException = async (req, res) => {
+  try {
+    await prisma.recurringException.delete({ where: { id: parseInt(req.params.id) } });
+    audit(req, 'recurringException.delete', { id: parseInt(req.params.id) });
+    res.status(204).send();
+  } catch (e) {
+    console.error('[deleteRecurringException]', e);
+    res.status(500).json({ error: 'Erro ao excluir exceção' });
   }
 };

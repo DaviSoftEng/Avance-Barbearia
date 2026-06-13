@@ -1,15 +1,33 @@
 const prisma = require('../db');
 const { audit } = require('../utils/audit');
-const { getBookingWindowDays, getWhatsapp } = require('../utils/settings');
+const { getBookingWindowDays, getWhatsapp, getAgendaState } = require('../utils/settings');
 
 async function setKey(key, value) {
   await prisma.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
 }
 
-// Configurações de agendamento (público — o site precisa saber a janela e o WhatsApp)
+// Monta o payload de configurações enviado ao front (admin e site público).
+// Campos da agenda:
+//  - agendaOpen / agendaOpenUntil → estado "cru" (controles do painel do Ryann)
+//  - agendaIsOpenNow / agendaMaxDate → estado efetivo (usado pelo site do cliente)
+//  - agendaSaturday → sábado da semana atual (teto máximo do seletor de data)
+async function buildSettingsPayload() {
+  const agenda = await getAgendaState();
+  return {
+    bookingWindowDays: await getBookingWindowDays(),
+    whatsapp: await getWhatsapp(),
+    agendaOpen: agenda.flag,
+    agendaOpenUntil: agenda.openUntil,
+    agendaIsOpenNow: agenda.open,
+    agendaMaxDate: agenda.ceiling,
+    agendaSaturday: agenda.saturday,
+  };
+}
+
+// Configurações de agendamento (público — o site precisa saber se a agenda está aberta e o WhatsApp)
 exports.getSettings = async (req, res) => {
   try {
-    res.json({ bookingWindowDays: await getBookingWindowDays(), whatsapp: await getWhatsapp() });
+    res.json(await buildSettingsPayload());
   } catch (e) {
     console.error('[getSettings]', e);
     res.status(500).json({ error: 'Erro ao buscar configurações' });
@@ -17,7 +35,7 @@ exports.getSettings = async (req, res) => {
 };
 
 exports.updateSettings = async (req, res) => {
-  const { bookingWindowDays, whatsapp } = req.body;
+  const { bookingWindowDays, whatsapp, agendaOpen, agendaOpenUntil } = req.body;
   try {
     if (bookingWindowDays !== undefined) {
       const n = parseInt(bookingWindowDays, 10);
@@ -34,8 +52,21 @@ exports.updateSettings = async (req, res) => {
       }
       await setKey('whatsapp', digits);
     }
-    audit(req, 'settings.update', { bookingWindowDays, whatsappUpdated: whatsapp !== undefined });
-    res.json({ bookingWindowDays: await getBookingWindowDays(), whatsapp: await getWhatsapp() });
+    if (agendaOpen !== undefined) {
+      await setKey('agendaOpen', agendaOpen ? 'true' : 'false');
+    }
+    if (agendaOpenUntil !== undefined) {
+      // Vazio/null limpa a data. Senão exige formato YYYY-MM-DD (o teto do sábado é aplicado no cálculo).
+      if (!agendaOpenUntil) {
+        await setKey('agendaOpenUntil', '');
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(agendaOpenUntil)) {
+        await setKey('agendaOpenUntil', agendaOpenUntil);
+      } else {
+        return res.status(400).json({ error: 'Data limite inválida' });
+      }
+    }
+    audit(req, 'settings.update', { bookingWindowDays, whatsappUpdated: whatsapp !== undefined, agendaOpen, agendaOpenUntil });
+    res.json(await buildSettingsPayload());
   } catch (e) {
     console.error('[updateSettings]', e);
     res.status(500).json({ error: 'Erro ao salvar configurações' });

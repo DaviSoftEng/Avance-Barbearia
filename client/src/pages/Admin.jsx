@@ -5,6 +5,7 @@ import {
   getStats, getClients,
   getAllServices, createService, updateService, deleteService, uploadServiceImage,
   getRecurringBlocks, createRecurringBlock, deleteRecurringBlock,
+  getRecurringExceptions, createRecurringException, deleteRecurringException,
   getBusinessHours, updateBusinessHours, getDayBlocks, createDayBlock, deleteDayBlock,
   getBookingSettings, updateBookingSettings,
 } from '../services/api';
@@ -71,6 +72,12 @@ function getWeekDates(base) {
     dd.setDate(d.getDate() + i);
     return ymd(dd);
   });
+}
+// Próximo sábado a partir de "base" (se já é sábado, devolve o próprio). 6 = sábado.
+function saturdayOnOrAfter(base) {
+  const d = new Date(base + 'T12:00:00');
+  d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7));
+  return ymd(d);
 }
 
 export default function Admin() {
@@ -221,13 +228,17 @@ function TabAgenda() {
   const [weekBase, setWeekBase] = useState(today);
   const [weekDates, setWeekDates] = useState(getWeekDates(today));
   const [appointments, setAppointments] = useState([]);
+  const [recurring, setRecurring] = useState([]);
+  const [exceptions, setExceptions] = useState([]);
   const [selectedDate, setSelectedDate] = useState(today);
   const [view, setView] = useState('day');
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    getAppointments().then((r) => setAppointments(r.data)).finally(() => setLoading(false));
+    Promise.all([getAppointments(), getRecurringBlocks(), getRecurringExceptions()])
+      .then(([a, r, e]) => { setAppointments(a.data); setRecurring(r.data); setExceptions(e.data); })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -302,7 +313,7 @@ function TabAgenda() {
 
       {view === 'week'
         ? <WeekView weekDates={weekDates} apptsByDate={apptsByDate} onStatusChange={handleStatusChange} onDelete={handleDelete} />
-        : <DayView date={selectedDate} appointments={dayAppts} loading={loading} onStatusChange={handleStatusChange} onDelete={handleDelete} onReload={load} />
+        : <DayView date={selectedDate} appointments={dayAppts} recurring={recurring} exceptions={exceptions} loading={loading} onStatusChange={handleStatusChange} onDelete={handleDelete} onReload={load} />
       }
     </div>
   );
@@ -335,11 +346,34 @@ function WeekView({ weekDates, apptsByDate, onStatusChange, onDelete }) {
   );
 }
 
-function DayView({ date, appointments, loading, onStatusChange, onDelete, onReload }) {
+function DayView({ date, appointments, recurring = [], exceptions = [], loading, onStatusChange, onDelete, onReload }) {
   const [editingAppt, setEditingAppt] = useState(null);
+  const [movingFixo, setMovingFixo] = useState(null);
   const dateLabel = date
     ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     : '';
+
+  // Clientes fixos que aparecem NESTE dia, já considerando as exceções da semana
+  const dow = date ? new Date(date + 'T12:00:00').getDay() : -1;
+  const exForDate = exceptions.filter((e) => e.originalDate === date);
+  const fixoRows = [];
+  recurring.filter((r) => r.dayOfWeek === dow).forEach((b) => {
+    const ex = exForDate.find((e) => e.recurringBlockId === b.id);
+    if (!ex) fixoRows.push({ kind: 'fixo', time: b.time, block: b });
+    else if (ex.type === 'move') fixoRows.push({ kind: 'moved-away', time: b.time, block: b, ex });
+    else fixoRows.push({ kind: 'cancelled', time: b.time, block: b, ex });
+  });
+  exceptions.filter((e) => e.type === 'move' && e.newDate === date).forEach((ex) => {
+    fixoRows.push({ kind: 'moved-in', time: ex.newTime, block: ex.recurringBlock, ex });
+  });
+  fixoRows.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  const cancelWeek = async (block) => {
+    if (!confirm(`Cancelar ${block.clientName} nesta semana? O horário ficará livre (ele continua fixo nas próximas semanas).`)) return;
+    await createRecurringException(block.id, { originalDate: date, type: 'cancel' });
+    onReload();
+  };
+  const undoException = async (exId) => { await deleteRecurringException(exId); onReload(); };
 
   if (loading) return <Spinner />;
 
@@ -363,9 +397,27 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete, onRelo
         <MiniStat label="Previsto"    value={fmtCurrency(revenue)} color="blue" />
       </div>
 
-      {appointments.length === 0 && (
+      {appointments.length === 0 && fixoRows.length === 0 && (
         <div className="card p-10 text-center">
           <p className="text-[#333] text-sm">Nenhum agendamento neste dia.</p>
+        </div>
+      )}
+
+      {/* Clientes fixos do dia */}
+      {fixoRows.length > 0 && (
+        <div className="pt-1">
+          <p className="text-[#444] text-xs mb-2">Clientes fixos</p>
+          <div className="space-y-2">
+            {fixoRows.map((row, i) => (
+              <FixoRow
+                key={`${row.kind}-${row.block?.id}-${i}`}
+                row={row}
+                onMove={() => setMovingFixo(row.block)}
+                onCancel={() => cancelWeek(row.block)}
+                onUndo={() => undoException(row.ex.id)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -406,6 +458,128 @@ function DayView({ date, appointments, loading, onStatusChange, onDelete, onRelo
           onSaved={() => { setEditingAppt(null); onReload(); }}
         />
       )}
+
+      {movingFixo && (
+        <MoveFixoModal
+          block={movingFixo}
+          originalDate={date}
+          onClose={() => setMovingFixo(null)}
+          onSaved={() => { setMovingFixo(null); onReload(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Linha de um cliente fixo na agenda do dia (com ações de adiantar/cancelar/desfazer)
+function FixoRow({ row, onMove, onCancel, onUndo }) {
+  const { kind, time, block, ex } = row;
+
+  if (kind === 'moved-away') {
+    return (
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#0d0d0d] border border-[#161616] rounded-xl">
+        <span className="text-[#555] text-sm truncate">
+          <span className="line-through">{time} · {block.clientName}</span>
+          <span className="text-[#666] no-underline"> → adiantado p/ {fmt(ex.newDate)} às {ex.newTime}</span>
+        </span>
+        <button onClick={onUndo} className="text-[#444] hover:text-blue-400 text-xs ml-3 shrink-0 transition-colors">Desfazer</button>
+      </div>
+    );
+  }
+  if (kind === 'cancelled') {
+    return (
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#0d0d0d] border border-[#161616] rounded-xl">
+        <span className="text-[#555] text-sm truncate line-through">{time} · {block.clientName} · cancelado nesta semana</span>
+        <button onClick={onUndo} className="text-[#444] hover:text-blue-400 text-xs ml-3 shrink-0 transition-colors">Reativar</button>
+      </div>
+    );
+  }
+
+  const movedIn = kind === 'moved-in';
+  return (
+    <div className={`card border p-4 ${movedIn ? 'bg-blue-950/20 border-blue-900/40' : 'bg-[#0d0d0d] border-[#161616]'}`}>
+      <div className="flex gap-4">
+        <div className="flex flex-col items-center w-16 shrink-0">
+          <span className="text-white text-lg font-bold leading-tight">{time}</span>
+          <span className="text-[#555] text-[11px]">30min</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-white font-semibold truncate">{block.clientName}</p>
+            <span className="text-[11px] px-2 py-0.5 rounded-full border shrink-0 border-purple-800/50 bg-purple-900/20 text-purple-300">Fixo</span>
+          </div>
+          {movedIn
+            ? <p className="text-blue-300/80 text-xs mt-0.5">Adiantado de {fmt(ex.originalDate)}</p>
+            : <p className="text-[#666] text-xs mt-0.5">Cliente fixo desta semana</p>}
+
+          <div className="flex flex-wrap gap-2 mt-3">
+            {movedIn ? (
+              <ActionBtn color="blue" onClick={onUndo}>Desfazer adiantamento</ActionBtn>
+            ) : (
+              <>
+                <ActionBtn color="blue" onClick={onMove}>Adiantar / Remarcar</ActionBtn>
+                <ActionBtn color="red" onClick={onCancel}>Cancelar esta semana</ActionBtn>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal para adiantar/remarcar um cliente fixo dentro da mesma semana
+function MoveFixoModal({ block, originalDate, onClose, onSaved }) {
+  const weekDates = getWeekDates(originalDate); // Dom..Sáb da semana
+  const [newDate, setNewDate] = useState(originalDate);
+  const [newTime, setNewTime] = useState(block.time);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true); setError('');
+    try {
+      await createRecurringException(block.id, { originalDate, type: 'move', newDate, newTime });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao remarcar');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center px-4">
+      <div className="bg-[#0d0d0d] border border-[#1E1E1E] rounded-t-2xl sm:rounded-2xl w-full max-w-md">
+        <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-semibold text-sm">Adiantar / Remarcar</h3>
+            <p className="text-[#444] text-xs">{block.clientName} · fixo de {fmt(originalDate)} às {block.time}</p>
+          </div>
+          <button onClick={onClose} className="text-[#444] hover:text-white text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+        </div>
+        <form onSubmit={save} className="p-5 space-y-4">
+          <p className="text-[#666] text-xs">Escolha o novo dia e horário dentro desta semana. O horário original fica livre para outros clientes; o cliente continua fixo nas próximas semanas.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[#444] text-xs block mb-1">Novo dia</label>
+              <select value={newDate} onChange={(e) => setNewDate(e.target.value)} className="input-field">
+                {weekDates.map((d) => (
+                  <option key={d} value={d}>{DAYS[new Date(d + 'T12:00:00').getDay()]} · {fmt(d)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[#444] text-xs block mb-1">Novo horário</label>
+              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input-field" required />
+            </div>
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 bg-[#111] border border-[#1E1E1E] text-[#555] py-2.5 rounded-xl text-sm hover:text-white transition-all">Cancelar</button>
+            <button type="submit" disabled={saving} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-50">{saving ? 'Salvando...' : 'Confirmar'}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -718,8 +892,10 @@ function TabConfig() {
   const [saving, setSaving] = useState(false);
   const [newBlock, setNewBlock] = useState({ date: '', reason: '', startTime: '', endTime: '' });
   const [newRecurring, setNewRecurring] = useState({ clientName: '', dayOfWeek: '1', time: '', notes: '' });
-  const [windowDays, setWindowDays] = useState(7);
   const [whatsapp, setWhatsapp] = useState('');
+  const [agendaOpen, setAgendaOpen] = useState(true);
+  const [agendaUntil, setAgendaUntil] = useState('');
+  const [agendaSaturday, setAgendaSaturday] = useState(saturdayOnOrAfter(todayBR()));
   const [savingWindow, setSavingWindow] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -728,8 +904,10 @@ function TabConfig() {
     Promise.all([getBusinessHours(), getDayBlocks(), getRecurringBlocks(), getBookingSettings()])
       .then(([h, b, r, s]) => {
         setHours(h.data); setBlocks(b.data); setRecurring(r.data);
-        if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
         if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
+        if (s.data?.agendaOpen !== undefined) setAgendaOpen(s.data.agendaOpen);
+        setAgendaUntil(s.data?.agendaOpenUntil || '');
+        if (s.data?.agendaSaturday) setAgendaSaturday(s.data.agendaSaturday);
       })
       .finally(() => setLoading(false));
   };
@@ -737,7 +915,10 @@ function TabConfig() {
 
   const saveWindow = async () => {
     setSavingWindow(true);
-    try { await updateBookingSettings({ bookingWindowDays: Number(windowDays), whatsapp }); }
+    try {
+      await updateBookingSettings({ whatsapp, agendaOpen, agendaOpenUntil: agendaUntil || null });
+      load();
+    }
     finally { setSavingWindow(false); }
   };
 
@@ -769,24 +950,70 @@ function TabConfig() {
     <div className="space-y-10">
       <h2 className="text-xl font-bold text-white">Configurações</h2>
 
-      {/* Agendamento e contato */}
+      {/* Agenda (abrir/fechar) e contato */}
+      {(() => {
+        const today = todayBR();
+        const sat = agendaSaturday || saturdayOnOrAfter(today);
+        const ceiling = agendaUntil && agendaUntil < sat ? agendaUntil : sat;
+        const effOpen = agendaOpen && today <= ceiling;
+        return (
+          <section className="card p-5">
+            <h3 className="text-white font-semibold mb-1">Agenda</h3>
+            <p className="text-[#444] text-xs mb-5">Abra a agenda da semana e escolha até quando os clientes podem marcar. Limite máximo: o sábado da semana ({fmt(sat)}). Ela fecha sozinha quando a data passa.</p>
+
+            {/* Estado atual */}
+            <div className={`flex items-center gap-2 mb-5 px-3 py-2.5 rounded-xl border text-sm ${effOpen ? 'bg-green-900/20 border-green-800/40 text-green-400' : 'bg-red-900/20 border-red-800/40 text-red-400'}`}>
+              <span className={`w-2 h-2 rounded-full ${effOpen ? 'bg-green-400' : 'bg-red-400'}`} />
+              {effOpen ? `Aberta — clientes podem marcar até ${fmt(ceiling)}` : 'Fechada — clientes não conseguem marcar'}
+            </div>
+
+            <div className="flex flex-wrap items-end gap-4">
+              {/* Liga/desliga */}
+              <div>
+                <label className="text-[#333] text-xs block mb-1">Agenda</label>
+                <label className="flex items-center gap-2 cursor-pointer h-[42px]" onClick={() => setAgendaOpen((v) => !v)}>
+                  <div className={`w-9 h-5 rounded-full relative transition-all ${agendaOpen ? 'bg-blue-600' : 'bg-[#222]'}`}>
+                    <div className="w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 transition-all" style={{ left: agendaOpen ? '18px' : '2px' }} />
+                  </div>
+                  <span className="text-[#555] text-xs w-14">{agendaOpen ? 'Aberta' : 'Fechada'}</span>
+                </label>
+              </div>
+              {/* Data limite */}
+              <div>
+                <label className="text-[#333] text-xs block mb-1">Aberta até</label>
+                <input
+                  type="date"
+                  value={agendaUntil}
+                  min={today}
+                  max={sat}
+                  onChange={(e) => setAgendaUntil(e.target.value)}
+                  className="input-field w-44"
+                />
+              </div>
+              {/* Atalho */}
+              <button
+                type="button"
+                onClick={() => { setAgendaOpen(true); setAgendaUntil(sat); }}
+                className="px-4 py-2.5 bg-[#111] border border-[#1E1E1E] text-[#888] text-sm rounded-xl hover:text-white hover:border-[#333] transition-all"
+              >
+                Abrir até sábado
+              </button>
+              <button onClick={saveWindow} disabled={savingWindow} className="btn-primary px-5 py-2.5 text-sm disabled:opacity-50">
+                {savingWindow ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+            <p className="text-[#333] text-[11px] mt-3">Deixe a data em branco para abrir até o sábado automaticamente. Clientes fixos não são afetados por abrir/fechar.</p>
+          </section>
+        );
+      })()}
+
+      {/* Contato */}
       <section className="card p-5">
-        <h3 className="text-white font-semibold mb-1">Agendamento</h3>
-        <p className="text-[#444] text-xs mb-5">Janela de horários e o WhatsApp que recebe as confirmações dos clientes.</p>
+        <h3 className="text-white font-semibold mb-1">WhatsApp da barbearia</h3>
+        <p className="text-[#444] text-xs mb-5">Número que recebe a confirmação que o cliente envia ao finalizar o agendamento.</p>
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="text-[#333] text-xs block mb-1">Dias à frente</label>
-            <input
-              type="number"
-              min="1"
-              max="365"
-              value={windowDays}
-              onChange={(e) => setWindowDays(e.target.value)}
-              className="input-field w-28"
-            />
-          </div>
-          <div>
-            <label className="text-[#333] text-xs block mb-1">WhatsApp da barbearia</label>
+            <label className="text-[#333] text-xs block mb-1">Número</label>
             <input
               type="tel"
               value={whatsapp}
@@ -799,7 +1026,6 @@ function TabConfig() {
             {savingWindow ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
-        <p className="text-[#333] text-[11px] mt-3">A janela anda sozinha todo dia (ex.: <span className="text-[#555]">7</span> = próxima semana). O <span className="text-[#555]">WhatsApp</span> recebe a confirmação que o cliente envia ao finalizar o agendamento.</p>
       </section>
 
       {/* Horários */}

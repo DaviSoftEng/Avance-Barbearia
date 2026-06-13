@@ -26,6 +26,9 @@ export default function Booking() {
   const [businessHours, setBusinessHours] = useState([]);
   const [dayBlocks, setDayBlocks]     = useState([]);
   const [windowDays, setWindowDays]   = useState(7);
+  const [agendaOpen, setAgendaOpen]   = useState(true);
+  const [agendaMaxDate, setAgendaMaxDate] = useState('');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [whatsapp, setWhatsapp]       = useState('');
   const [calMonth, setCalMonth]       = useState(() => {
     const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() };
@@ -37,7 +40,7 @@ export default function Booking() {
   const [error, setError]             = useState('');
 
   const today     = toISO(new Date());
-  const maxDate   = (() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + windowDays); return toISO(d); })();
+  const maxDate   = agendaMaxDate || (() => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() + windowDays); return toISO(d); })();
   const totalPrice    = selectedServices.reduce((s, sv) => s + sv.price, 0);
   const totalDuration = selectedServices.reduce((s, sv) => s + sv.duration, 0);
 
@@ -58,7 +61,9 @@ export default function Booking() {
     getBookingSettings().then((s) => {
       if (s.data?.bookingWindowDays) setWindowDays(s.data.bookingWindowDays);
       if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
-    }).catch(() => {});
+      if (s.data?.agendaIsOpenNow !== undefined) setAgendaOpen(s.data.agendaIsOpenNow);
+      if (s.data?.agendaMaxDate) setAgendaMaxDate(s.data.agendaMaxDate);
+    }).catch(() => {}).finally(() => setSettingsLoaded(true));
   }, []);
 
   const toggleService = (service) => {
@@ -182,6 +187,35 @@ export default function Booking() {
     );
   }
 
+  // ─── Agenda fechada ─────────────────────────────────────────────────────────
+  if (settingsLoaded && !agendaOpen) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-6">
+        <div className="w-full max-w-md text-center">
+          <div className="w-12 h-12 mx-auto rounded-full bg-[#161616] border border-[#252525] flex items-center justify-center mb-5">
+            <svg className="w-6 h-6 text-[#666]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="3" y="4.5" width="18" height="16" rx="2" />
+              <path strokeLinecap="round" d="M3 9h18M8 2.5v4M16 2.5v4" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Agenda fechada no momento</h2>
+          <p className="text-[#666] text-sm mb-6">A agenda da semana ainda não foi aberta. Assim que o Ryann liberar, você poderá marcar seu horário por aqui.</p>
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.738-.981z"/></svg>
+              Falar no WhatsApp
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ─── Flow principal ────────────────────────────────────────────────────────
   return (
     <div className="min-h-[80vh] px-6 py-16">
@@ -294,7 +328,7 @@ export default function Booking() {
                   <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-600" /><span className="text-[#444] text-xs">Selecionado</span></div>
                   <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#1a1a1a] border border-[#2a2a2a]" /><span className="text-[#444] text-xs">Fechado / Passado</span></div>
                 </div>
-                <p className="text-[#333] text-[11px] mt-3">Agenda aberta para os próximos {windowDays} dias.</p>
+                <p className="text-[#333] text-[11px] mt-3">Agenda aberta até {new Date(maxDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.</p>
               </div>
 
               {/* Horários */}
