@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { lookupAppointment, cancelAppointmentPublic } from '../services/api';
+import { useState, useEffect } from 'react';
+import { lookupAppointment, getBookingSettings } from '../services/api';
 import { maskPhone, isValidBRPhone } from '../utils/phone';
 
 const STATUS = {
@@ -21,7 +21,23 @@ export default function MeuAgendamento() {
   const [appointments, setAppointments] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [cancelling, setCancelling] = useState(null);
+  const [whatsapp, setWhatsapp] = useState('');
+
+  useEffect(() => {
+    getBookingSettings()
+      .then((s) => { if (s.data?.whatsapp) setWhatsapp(s.data.whatsapp); })
+      .catch(() => {});
+  }, []);
+
+  const waCancelUrl = (a) => {
+    if (!whatsapp) return null;
+    const msg =
+      `Olá, Ryann! Preciso cancelar / remarcar meu agendamento.\n\n` +
+      `*Nome:* ${a.clientName}\n` +
+      `*Data:* ${new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR')}\n` +
+      `*Horário:* ${a.time}`;
+    return `https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`;
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -37,26 +53,12 @@ export default function MeuAgendamento() {
     } finally { setLoading(false); }
   };
 
-  const handleCancel = async (id) => {
-    if (!confirm('Tem certeza que deseja cancelar este agendamento?')) return;
-    setCancelling(id);
-    setError('');
-    try {
-      await cancelAppointmentPublic(id, phone.trim());
-      // Só remove da UI após confirmação do servidor
-      setAppointments((prev) => prev.filter((a) => a.id !== id));
-    } catch (e) {
-      const msg = e.response?.data?.error || 'Erro ao cancelar. Tente novamente.';
-      setError(msg);
-    } finally { setCancelling(null); }
-  };
-
   return (
     <div className="min-h-[80vh] px-6 py-16">
       <div className="max-w-lg mx-auto">
         <p className="section-label mb-3">Barbearia Avance · Ryann França</p>
         <h1 className="text-3xl font-bold text-white mb-2">Meu agendamento</h1>
-        <p className="text-[#444] text-sm mb-10">Consulte ou cancele seu horário usando o número de telefone que usou no agendamento.</p>
+        <p className="text-[#444] text-sm mb-10">Consulte seu horário usando o número de telefone que usou no agendamento. Para cancelar ou remarcar, fale direto com o Ryann.</p>
 
         <form onSubmit={handleSearch} className="card p-5 space-y-4 mb-6">
           <div>
@@ -111,13 +113,18 @@ export default function MeuAgendamento() {
                     </div>
 
                     {a.status === 'confirmed' && (
-                      <button
-                        onClick={() => handleCancel(a.id)}
-                        disabled={cancelling === a.id}
-                        className="w-full py-2.5 text-sm border border-red-900/40 text-red-400 rounded-xl hover:bg-red-900/20 transition-all disabled:opacity-40"
-                      >
-                        {cancelling === a.id ? 'Cancelando...' : 'Cancelar agendamento'}
-                      </button>
+                      waCancelUrl(a) ? (
+                        <a
+                          href={waCancelUrl(a)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-center gap-2 w-full py-2.5 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-colors"
+                        >
+                          Cancelar / remarcar com o Ryann
+                        </a>
+                      ) : (
+                        <p className="text-center text-[#555] text-xs">Para cancelar ou remarcar, entre em contato com o Ryann.</p>
+                      )
                     )}
                   </div>
                 ))}
