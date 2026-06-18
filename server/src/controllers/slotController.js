@@ -3,6 +3,9 @@ const { audit } = require('../utils/audit');
 const { lunchBreak } = require('../utils/businessRules');
 const { getAgendaState, brToday, saturdayOnOrAfter } = require('../utils/settings');
 const { recurringOccupied } = require('../utils/recurring');
+const { normalizePhone } = require('../utils/phone');
+
+const RECURRING_INCLUDE = { services: { include: { service: true } } };
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -101,7 +104,10 @@ exports.getAvailableSlots = async (req, res) => {
 
 exports.getRecurringBlocks = async (req, res) => {
   try {
-    const blocks = await prisma.recurringBlock.findMany({ orderBy: [{ dayOfWeek: 'asc' }, { time: 'asc' }] });
+    const blocks = await prisma.recurringBlock.findMany({
+      orderBy: [{ dayOfWeek: 'asc' }, { time: 'asc' }],
+      include: RECURRING_INCLUDE,
+    });
     res.json(blocks);
   } catch (e) {
     console.error('[getRecurringBlocks]', e);
@@ -109,20 +115,66 @@ exports.getRecurringBlocks = async (req, res) => {
   }
 };
 
+// Normaliza serviceIds vindos do body em uma lista de inteiros distintos.
+function parseServiceIds(serviceIds) {
+  if (!Array.isArray(serviceIds)) return [];
+  return [...new Set(serviceIds.map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+}
+
 exports.createRecurringBlock = async (req, res) => {
-  const { clientName, dayOfWeek, time, notes } = req.body;
+  const { clientName, clientPhone, dayOfWeek, time, notes, serviceIds } = req.body;
   if (!clientName || dayOfWeek === undefined || !time) {
     return res.status(400).json({ error: 'Dados incompletos' });
   }
+  const ids = parseServiceIds(serviceIds);
   try {
     const block = await prisma.recurringBlock.create({
-      data: { clientName, dayOfWeek: parseInt(dayOfWeek), time, notes: notes || '' },
+      data: {
+        clientName,
+        clientPhone: clientPhone ? normalizePhone(clientPhone) : '',
+        dayOfWeek: parseInt(dayOfWeek),
+        time,
+        notes: notes || '',
+        services: { create: ids.map((id) => ({ serviceId: id })) },
+      },
+      include: RECURRING_INCLUDE,
     });
     audit(req, 'recurringBlock.create', { id: block.id });
     res.status(201).json(block);
   } catch (e) {
     console.error('[createRecurringBlock]', e);
     res.status(500).json({ error: 'Erro ao criar horário fixo' });
+  }
+};
+
+exports.updateRecurringBlock = async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { clientName, clientPhone, dayOfWeek, time, notes, serviceIds } = req.body;
+  if (!clientName || dayOfWeek === undefined || !time) {
+    return res.status(400).json({ error: 'Dados incompletos' });
+  }
+  const ids = parseServiceIds(serviceIds);
+  try {
+    const block = await prisma.$transaction(async (tx) => {
+      await tx.recurringBlockService.deleteMany({ where: { recurringBlockId: id } });
+      return tx.recurringBlock.update({
+        where: { id },
+        data: {
+          clientName,
+          clientPhone: clientPhone ? normalizePhone(clientPhone) : '',
+          dayOfWeek: parseInt(dayOfWeek),
+          time,
+          notes: notes || '',
+          services: { create: ids.map((sid) => ({ serviceId: sid })) },
+        },
+        include: RECURRING_INCLUDE,
+      });
+    });
+    audit(req, 'recurringBlock.update', { id });
+    res.json(block);
+  } catch (e) {
+    console.error('[updateRecurringBlock]', e);
+    res.status(500).json({ error: 'Erro ao atualizar horário fixo' });
   }
 };
 
@@ -137,12 +189,65 @@ exports.deleteRecurringBlock = async (req, res) => {
   }
 };
 
+// Registra o atendimento de um cliente fixo numa data → cria um agendamento "completed"
+// com o(s) serviço(s) do fixo, fazendo o valor entrar no faturamento e no histórico.
+exports.completeRecurring = async (req, res) => {
+  const recurringBlockId = parseInt(req.params.id);
+  const { date, time } = req.body;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+    return res.status(400).json({ error: 'Data inválida' });
+  }
+  if (time && !/^\d{2}:\d{2}$/.test(time)) {
+    return res.status(400).json({ error: 'Horário inválido' });
+  }
+  try {
+    const block = await prisma.recurringBlock.findUnique({
+      where: { id: recurringBlockId },
+      include: RECURRING_INCLUDE,
+    });
+    if (!block) return res.status(404).json({ error: 'Cliente fixo não encontrado' });
+    if (block.services.length === 0) {
+      return res.status(400).json({ error: 'Configure o serviço do cliente fixo antes de concluir.' });
+    }
+
+    // Evita registrar o mesmo fixo duas vezes na mesma data
+    const already = await prisma.appointment.findFirst({
+      where: { recurringBlockId, date, status: { in: ['confirmed', 'completed'] } },
+    });
+    if (already) return res.status(409).json({ error: 'Este cliente fixo já foi registrado nesta data.' });
+
+    const services = block.services.map((s) => s.service);
+    const totalPrice    = Math.round(services.reduce((sum, sv) => sum + sv.price, 0) * 100) / 100;
+    const totalDuration = services.reduce((sum, sv) => sum + sv.duration, 0);
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        clientName: block.clientName,
+        clientPhone: block.clientPhone || '',
+        date,
+        time: time || block.time,
+        status: 'completed',
+        price: totalPrice,
+        totalDuration,
+        recurringBlockId,
+        services: { create: services.map((sv) => ({ serviceId: sv.id })) },
+      },
+      include: { services: { include: { service: true } } },
+    });
+    audit(req, 'recurringBlock.complete', { recurringBlockId, appointmentId: appointment.id, date });
+    res.status(201).json(appointment);
+  } catch (e) {
+    console.error('[completeRecurring]', e);
+    res.status(500).json({ error: 'Erro ao registrar atendimento do cliente fixo' });
+  }
+};
+
 // ── Exceções da semana (adiantar/remarcar ou cancelar um cliente fixo numa data) ──
 
 exports.getRecurringExceptions = async (req, res) => {
   try {
     const exceptions = await prisma.recurringException.findMany({
-      include: { recurringBlock: true },
+      include: { recurringBlock: { include: RECURRING_INCLUDE } },
       orderBy: { originalDate: 'asc' },
     });
     res.json(exceptions);

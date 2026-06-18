@@ -77,7 +77,9 @@ export const deleteService = (id) => api.delete(`/services/${id}`);
 // Admin - Recurring Blocks
 export const getRecurringBlocks = () => api.get('/slots/recurring');
 export const createRecurringBlock = (data) => api.post('/slots/recurring', data);
+export const updateRecurringBlock = (id, data) => api.put(`/slots/recurring/${id}`, data);
 export const deleteRecurringBlock = (id) => api.delete(`/slots/recurring/${id}`);
+export const completeRecurring = (id, data) => api.post(`/slots/recurring/${id}/complete`, data);
 
 // Admin - Recurring Exceptions (adiantar/remarcar ou cancelar um fixo numa semana)
 export const getRecurringExceptions = () => api.get('/slots/exceptions');

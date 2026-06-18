@@ -22,29 +22,32 @@ model Setting {
 }
 
 model Service {
-  id           Int                  @id @default(autoincrement())
-  name         String
-  price        Float
-  duration     Int
-  description  String
-  image        String               @default("")
-  active       Boolean              @default(true)
-  appointments AppointmentService[]
+  id              Int                     @id @default(autoincrement())
+  name            String
+  price           Float
+  duration        Int
+  description     String
+  image           String                  @default("")
+  active          Boolean                 @default(true)
+  appointments    AppointmentService[]
+  recurringBlocks RecurringBlockService[]
 }
 
 // status: confirmed | completed | no_show | cancelled
 model Appointment {
-  id            Int                  @id @default(autoincrement())
-  clientName    String
-  clientPhone   String
-  date          String
-  time          String
-  status        String               @default("confirmed")
-  notes         String               @default("")
-  price         Float                @default(0)
-  totalDuration Int                  @default(0)
-  services      AppointmentService[]
-  createdAt     DateTime             @default(now())
+  id               Int                  @id @default(autoincrement())
+  clientName       String
+  clientPhone      String
+  date             String
+  time             String
+  status           String               @default("confirmed")
+  notes            String               @default("")
+  price            Float                @default(0)
+  totalDuration    Int                  @default(0)
+  services         AppointmentService[]
+  recurringBlockId Int?                 // preenchido quando o atendimento veio de um cliente fixo
+  recurringBlock   RecurringBlock?      @relation(fields: [recurringBlockId], references: [id])
+  createdAt        DateTime             @default(now())
 }
 
 model AppointmentService {
@@ -56,12 +59,24 @@ model AppointmentService {
 }
 
 model RecurringBlock {
-  id         Int    @id @default(autoincrement())
-  clientName String
-  dayOfWeek  Int
-  time       String
-  notes      String @default("")
-  exceptions RecurringException[]
+  id           Int                     @id @default(autoincrement())
+  clientName   String
+  clientPhone  String                  @default("")
+  dayOfWeek    Int
+  time         String
+  notes        String                  @default("")
+  exceptions   RecurringException[]
+  services     RecurringBlockService[]
+  appointments Appointment[]
+}
+
+// Serviço(s) habitual(is) de um cliente fixo — define o valor registrado ao concluir.
+model RecurringBlockService {
+  id               Int            @id @default(autoincrement())
+  recurringBlockId Int
+  serviceId        Int
+  recurringBlock   RecurringBlock @relation(fields: [recurringBlockId], references: [id], onDelete: Cascade)
+  service          Service        @relation(fields: [serviceId], references: [id])
 }
 
 // Exceção pontual de um cliente fixo numa data específica (vale só naquela semana).

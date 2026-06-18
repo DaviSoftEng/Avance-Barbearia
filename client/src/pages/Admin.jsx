@@ -4,7 +4,7 @@ import {
   getAppointments, updateAppointmentStatus, updateAppointment, cancelAppointment, deleteAppointment,
   getStats, getClients,
   getAllServices, createService, updateService, deleteService, uploadServiceImage,
-  getRecurringBlocks, createRecurringBlock, deleteRecurringBlock,
+  getRecurringBlocks, createRecurringBlock, updateRecurringBlock, deleteRecurringBlock, completeRecurring,
   getRecurringExceptions, createRecurringException, deleteRecurringException,
   getBusinessHours, updateBusinessHours, getDayBlocks, createDayBlock, deleteDayBlock,
   getBookingSettings, updateBookingSettings,
@@ -23,6 +23,13 @@ const STATUS_CONFIG = {
 
 function apptServiceNames(a) {
   return a.services?.map((as) => as.service?.name).filter(Boolean).join(' + ') || '—';
+}
+// Serviços de um cliente fixo (nomes) e valor somado
+function fixoServiceNames(block) {
+  return block?.services?.map((s) => s.service?.name).filter(Boolean).join(' + ') || '';
+}
+function fixoValue(block) {
+  return (block?.services || []).reduce((s, x) => s + (x.service?.price || 0), 0);
 }
 
 function fmt(date) {
@@ -353,17 +360,21 @@ function DayView({ date, appointments, recurring = [], exceptions = [], loading,
     ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     : '';
 
-  // Clientes fixos que aparecem NESTE dia, já considerando as exceções da semana
+  // Clientes fixos que aparecem NESTE dia, já considerando as exceções da semana.
+  // Um fixo já registrado (virou atendimento concluído) sai daqui e aparece na linha do tempo.
   const dow = date ? new Date(date + 'T12:00:00').getDay() : -1;
   const exForDate = exceptions.filter((e) => e.originalDate === date);
+  const realizedBlockIds = new Set(appointments.filter((a) => a.recurringBlockId).map((a) => a.recurringBlockId));
   const fixoRows = [];
   recurring.filter((r) => r.dayOfWeek === dow).forEach((b) => {
+    if (realizedBlockIds.has(b.id)) return; // já registrado nesta data
     const ex = exForDate.find((e) => e.recurringBlockId === b.id);
     if (!ex) fixoRows.push({ kind: 'fixo', time: b.time, block: b });
     else if (ex.type === 'move') fixoRows.push({ kind: 'moved-away', time: b.time, block: b, ex });
     else fixoRows.push({ kind: 'cancelled', time: b.time, block: b, ex });
   });
   exceptions.filter((e) => e.type === 'move' && e.newDate === date).forEach((ex) => {
+    if (realizedBlockIds.has(ex.recurringBlockId)) return;
     fixoRows.push({ kind: 'moved-in', time: ex.newTime, block: ex.recurringBlock, ex });
   });
   fixoRows.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
@@ -374,6 +385,14 @@ function DayView({ date, appointments, recurring = [], exceptions = [], loading,
     onReload();
   };
   const undoException = async (exId) => { await deleteRecurringException(exId); onReload(); };
+  const completeFixo = async (row) => {
+    try {
+      await completeRecurring(row.block.id, { date, time: row.time });
+      onReload();
+    } catch (e) {
+      alert(e.response?.data?.error || 'Erro ao registrar atendimento.');
+    }
+  };
 
   if (loading) return <Spinner />;
 
@@ -415,6 +434,7 @@ function DayView({ date, appointments, recurring = [], exceptions = [], loading,
                 onMove={() => setMovingFixo(row.block)}
                 onCancel={() => cancelWeek(row.block)}
                 onUndo={() => undoException(row.ex.id)}
+                onComplete={() => completeFixo(row)}
               />
             ))}
           </div>
@@ -471,9 +491,11 @@ function DayView({ date, appointments, recurring = [], exceptions = [], loading,
   );
 }
 
-// Linha de um cliente fixo na agenda do dia (com ações de adiantar/cancelar/desfazer)
-function FixoRow({ row, onMove, onCancel, onUndo }) {
+// Linha de um cliente fixo na agenda do dia (com ações de concluir/adiantar/cancelar/desfazer)
+function FixoRow({ row, onMove, onCancel, onUndo, onComplete }) {
   const { kind, time, block, ex } = row;
+  const serviceNames = fixoServiceNames(block);
+  const value = fixoValue(block);
 
   if (kind === 'moved-away') {
     return (
@@ -512,7 +534,14 @@ function FixoRow({ row, onMove, onCancel, onUndo }) {
             ? <p className="text-blue-300/80 text-xs mt-0.5">Adiantado de {fmt(ex.originalDate)}</p>
             : <p className="text-[#666] text-xs mt-0.5">Cliente fixo desta semana</p>}
 
+          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            {serviceNames
+              ? <span className="text-[#888] text-sm">{serviceNames} · <span className="text-blue-400 font-semibold">{fmtCurrency(value)}</span></span>
+              : <span className="text-yellow-500/80 text-xs">Sem serviço definido — configure em Configurações</span>}
+          </div>
+
           <div className="flex flex-wrap gap-2 mt-3">
+            <ActionBtn color="green" onClick={onComplete}>Concluído</ActionBtn>
             {movedIn ? (
               <ActionBtn color="blue" onClick={onUndo}>Desfazer adiantamento</ActionBtn>
             ) : (
@@ -623,7 +652,12 @@ function ApptRow({ a, onEdit, onStatusChange, onDelete }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <p className="text-white font-semibold truncate">{a.clientName}</p>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full border shrink-0 ${st?.bg} ${st?.color}`}>{st?.label}</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {a.recurringBlockId && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full border border-purple-800/50 bg-purple-900/20 text-purple-300">Fixo</span>
+              )}
+              <span className={`text-[11px] px-2 py-0.5 rounded-full border ${st?.bg} ${st?.color}`}>{st?.label}</span>
+            </div>
           </div>
           <p className="text-[#888] text-sm mt-0.5">{apptServiceNames(a)}</p>
 
@@ -889,9 +923,11 @@ function TabConfig() {
   const [hours, setHours] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [recurring, setRecurring] = useState([]);
+  const [services, setServices] = useState([]);
+  const [editingFixo, setEditingFixo] = useState(null);
   const [saving, setSaving] = useState(false);
   const [newBlock, setNewBlock] = useState({ date: '', reason: '', startTime: '', endTime: '' });
-  const [newRecurring, setNewRecurring] = useState({ clientName: '', dayOfWeek: '1', time: '', notes: '' });
+  const [newRecurring, setNewRecurring] = useState({ clientName: '', clientPhone: '', dayOfWeek: '1', time: '', notes: '', serviceIds: [] });
   const [whatsapp, setWhatsapp] = useState('');
   const [agendaOpen, setAgendaOpen] = useState(true);
   const [agendaUntil, setAgendaUntil] = useState('');
@@ -901,9 +937,10 @@ function TabConfig() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([getBusinessHours(), getDayBlocks(), getRecurringBlocks(), getBookingSettings()])
-      .then(([h, b, r, s]) => {
+    Promise.all([getBusinessHours(), getDayBlocks(), getRecurringBlocks(), getBookingSettings(), getAllServices()])
+      .then(([h, b, r, s, sv]) => {
         setHours(h.data); setBlocks(b.data); setRecurring(r.data);
+        setServices((sv.data || []).filter((x) => x.active));
         if (s.data?.whatsapp !== undefined) setWhatsapp(s.data.whatsapp || '');
         if (s.data?.agendaOpen !== undefined) setAgendaOpen(s.data.agendaOpen);
         setAgendaUntil(s.data?.agendaOpenUntil || '');
@@ -940,9 +977,14 @@ function TabConfig() {
   const handleAddRecurring = async (e) => {
     e.preventDefault();
     await createRecurringBlock(newRecurring);
-    setNewRecurring({ clientName: '', dayOfWeek: '1', time: '', notes: '' });
+    setNewRecurring({ clientName: '', clientPhone: '', dayOfWeek: '1', time: '', notes: '', serviceIds: [] });
     load();
   };
+  const toggleNewService = (id) =>
+    setNewRecurring((r) => ({
+      ...r,
+      serviceIds: r.serviceIds.includes(id) ? r.serviceIds.filter((x) => x !== id) : [...r.serviceIds, id],
+    }));
 
   if (loading) return <Spinner />;
 
@@ -1101,11 +1143,15 @@ function TabConfig() {
       {/* Clientes fixos */}
       <section className="card p-5">
         <h3 className="text-white font-semibold mb-1">Clientes fixos (horários recorrentes)</h3>
-        <p className="text-[#444] text-xs mb-5">Reserva permanente por dia da semana.</p>
+        <p className="text-[#444] text-xs mb-5">Reserva permanente por dia da semana. Defina o serviço habitual para registrar o valor ao concluir.</p>
         <form onSubmit={handleAddRecurring} className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           <div>
             <label className="text-[#444] text-xs block mb-1">Nome</label>
             <input value={newRecurring.clientName} onChange={(e) => setNewRecurring((r) => ({ ...r, clientName: e.target.value }))} placeholder="Nome do cliente" className="input-field" required />
+          </div>
+          <div>
+            <label className="text-[#444] text-xs block mb-1">Telefone (opcional)</label>
+            <input value={newRecurring.clientPhone} onChange={(e) => setNewRecurring((r) => ({ ...r, clientPhone: maskPhone(e.target.value) }))} placeholder="(21) 99999-9999" className="input-field" />
           </div>
           <div>
             <label className="text-[#444] text-xs block mb-1">Dia da semana</label>
@@ -1117,9 +1163,13 @@ function TabConfig() {
             <label className="text-[#444] text-xs block mb-1">Horário</label>
             <input type="time" value={newRecurring.time} onChange={(e) => setNewRecurring((r) => ({ ...r, time: e.target.value }))} className="input-field" required />
           </div>
-          <div>
+          <div className="sm:col-span-4">
             <label className="text-[#444] text-xs block mb-1">Obs (opcional)</label>
             <input value={newRecurring.notes} onChange={(e) => setNewRecurring((r) => ({ ...r, notes: e.target.value }))} className="input-field" />
+          </div>
+          <div className="sm:col-span-4">
+            <label className="text-[#444] text-xs block mb-2">Serviço habitual</label>
+            <ServicePicker services={services} selected={newRecurring.serviceIds} onToggle={toggleNewService} />
           </div>
           <button type="submit" className="btn-primary px-4 py-2 text-sm sm:col-span-4">Adicionar</button>
         </form>
@@ -1129,13 +1179,117 @@ function TabConfig() {
             <div key={r.id} className="flex items-center justify-between px-4 py-3 bg-[#111] border border-[#1E1E1E] rounded-xl">
               <div>
                 <p className="text-white text-sm">{r.clientName} · {DAYS_FULL[r.dayOfWeek]} às {r.time}</p>
+                {fixoServiceNames(r)
+                  ? <p className="text-[#666] text-xs">{fixoServiceNames(r)} · <span className="text-blue-400">{fmtCurrency(fixoValue(r))}</span></p>
+                  : <p className="text-yellow-500/80 text-xs">Sem serviço definido</p>}
                 {r.notes && <p className="text-[#444] text-xs">{r.notes}</p>}
               </div>
-              <button onClick={() => { deleteRecurringBlock(r.id).then(load); }} className="text-[#333] hover:text-red-400 text-xs ml-4 transition-colors">Remover</button>
+              <div className="flex gap-2 ml-4 shrink-0">
+                <button onClick={() => setEditingFixo(r)} className="px-3 py-1.5 bg-[#111] border border-[#1E1E1E] text-[#555] text-xs rounded-lg hover:text-white transition-all">Editar</button>
+                <button onClick={() => { deleteRecurringBlock(r.id).then(load); }} className="text-[#333] hover:text-red-400 text-xs transition-colors">Remover</button>
+              </div>
             </div>
           ))}
         </div>
       </section>
+
+      {editingFixo && (
+        <EditFixoModal
+          block={editingFixo}
+          services={services}
+          onClose={() => setEditingFixo(null)}
+          onSaved={() => { setEditingFixo(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Seletor de serviços em "chips" (multi-seleção) reutilizável
+function ServicePicker({ services, selected, onToggle }) {
+  if (!services.length) return <p className="text-[#444] text-xs">Nenhum serviço ativo cadastrado.</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {services.map((s) => {
+        const on = selected.includes(s.id);
+        return (
+          <button
+            type="button"
+            key={s.id}
+            onClick={() => onToggle(s.id)}
+            className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${on ? 'bg-blue-900/40 border-blue-700/60 text-blue-300' : 'bg-[#111] border-[#1E1E1E] text-[#666] hover:text-white'}`}
+          >
+            {s.name} · {fmtCurrency(s.price)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Modal para editar um cliente fixo (serviços, telefone, dia, horário)
+function EditFixoModal({ block, services, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    clientName: block.clientName,
+    clientPhone: block.clientPhone ? maskPhone(block.clientPhone) : '',
+    dayOfWeek: String(block.dayOfWeek),
+    time: block.time,
+    notes: block.notes || '',
+    serviceIds: (block.services || []).map((s) => s.serviceId),
+  });
+  const [saving, setSaving] = useState(false);
+  const toggle = (id) =>
+    setForm((f) => ({ ...f, serviceIds: f.serviceIds.includes(id) ? f.serviceIds.filter((x) => x !== id) : [...f.serviceIds, id] }));
+
+  const save = async () => {
+    if (!form.clientName || !form.time) return;
+    setSaving(true);
+    try {
+      await updateRecurringBlock(block.id, form);
+      onSaved();
+    } catch (e) {
+      alert(e.response?.data?.error || 'Erro ao salvar.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-white font-semibold mb-4">Editar cliente fixo</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="text-[#444] text-xs block mb-1">Nome</label>
+            <input value={form.clientName} onChange={(e) => setForm((f) => ({ ...f, clientName: e.target.value }))} className="input-field" required />
+          </div>
+          <div>
+            <label className="text-[#444] text-xs block mb-1">Telefone (opcional)</label>
+            <input value={form.clientPhone} onChange={(e) => setForm((f) => ({ ...f, clientPhone: maskPhone(e.target.value) }))} placeholder="(21) 99999-9999" className="input-field" />
+          </div>
+          <div>
+            <label className="text-[#444] text-xs block mb-1">Dia da semana</label>
+            <select value={form.dayOfWeek} onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: e.target.value }))} className="input-field">
+              {DAYS_FULL.map((d, i) => <option key={i} value={i}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[#444] text-xs block mb-1">Horário</label>
+            <input type="time" value={form.time} onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))} className="input-field" required />
+          </div>
+          <div className="col-span-2">
+            <label className="text-[#444] text-xs block mb-1">Obs (opcional)</label>
+            <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className="input-field" />
+          </div>
+          <div className="col-span-2">
+            <label className="text-[#444] text-xs block mb-2">Serviço habitual</label>
+            <ServicePicker services={services} selected={form.serviceIds} onToggle={toggle} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 py-2.5 text-sm border border-[#1E1E1E] text-[#666] rounded-xl hover:text-white transition-all">Cancelar</button>
+          <button onClick={save} disabled={saving} className="flex-1 btn-primary py-2.5 text-sm disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar'}</button>
+        </div>
+      </div>
     </div>
   );
 }
