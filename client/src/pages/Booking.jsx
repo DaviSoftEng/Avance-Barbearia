@@ -131,13 +131,13 @@ export default function Booking() {
     const apptServices = bookedAppointment.services?.map((as) => as.service) || [];
     const dataFmt = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const waMsg =
-      `Olá! Acabei de confirmar meu agendamento ✅\n\n` +
-      `👤 Nome: ${bookedAppointment.clientName}\n` +
-      `📱 Telefone: ${formatPhone(bookedAppointment.clientPhone)}\n` +
-      `✂️ Serviço: ${apptServices.map((s) => s.name).join(' + ') || '—'}\n` +
-      `💰 Valor: ${fmtCurrency(bookedAppointment.price)}\n` +
-      `📅 Data: ${dataFmt}\n` +
-      `🕐 Horário: ${selectedTime}`;
+      `Olá, Ryann! Acabei de confirmar meu agendamento.\n\n` +
+      `*Nome:* ${bookedAppointment.clientName}\n` +
+      `*Telefone:* ${formatPhone(bookedAppointment.clientPhone)}\n` +
+      `*Serviço:* ${apptServices.map((s) => s.name).join(' + ') || '—'}\n` +
+      `*Valor:* ${fmtCurrency(bookedAppointment.price)}\n` +
+      `*Data:* ${dataFmt}\n` +
+      `*Horário:* ${selectedTime}`;
     const waUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(waMsg)}` : null;
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6">
