@@ -226,18 +226,24 @@ exports.getStats = async (req, res) => {
     const anchor = new Date(today + 'T00:00:00Z'); // âncora UTC do dia BR, p/ aritmética estável
     const sow    = new Date(anchor); sow.setUTCDate(anchor.getUTCDate() - anchor.getUTCDay());
     const startOfWeekStr  = sow.toISOString().slice(0, 10);
-    const som    = new Date(anchor); som.setUTCDate(1);
-    const startOfMonthStr = som.toISOString().slice(0, 10);
+
+    // Mês selecionado (YYYY-MM). Padrão: mês atual. Permite consultar meses anteriores.
+    const monthKey = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : today.slice(0, 7);
+    const [my, mm] = monthKey.split('-').map(Number);
+    const startOfMonthStr = `${monthKey}-01`;
+    const lastDayOfMonth  = new Date(Date.UTC(my, mm, 0)).toISOString().slice(0, 10); // dia 0 do mês seguinte
+    const endOfMonthStr   = lastDayOfMonth < today ? lastDayOfMonth : today;          // não conta datas futuras
+    const monthRange      = { gte: startOfMonthStr, lte: endOfMonthStr };
 
     const [todayAppts, weekAppts, monthAppts, totalClients, topServices] = await Promise.all([
       prisma.appointment.findMany({ where: { date: today }, include: APPOINTMENT_INCLUDE }),
       prisma.appointment.findMany({ where: { date: { gte: startOfWeekStr, lte: today }, status: { in: ['confirmed', 'completed'] } } }),
-      prisma.appointment.findMany({ where: { date: { gte: startOfMonthStr, lte: today }, status: { in: ['confirmed', 'completed'] } } }),
+      prisma.appointment.findMany({ where: { date: monthRange, status: { in: ['confirmed', 'completed'] } } }),
       prisma.appointment.groupBy({ by: ['clientPhone'], _count: { clientPhone: true } }),
       prisma.appointmentService.groupBy({
         by: ['serviceId'],
         _count: { serviceId: true },
-        where: { appointment: { status: { in: ['confirmed', 'completed'] } } },
+        where: { appointment: { status: { in: ['confirmed', 'completed'] }, date: monthRange } },
         orderBy: { _count: { serviceId: 'desc' } },
         take: 5,
       }),
@@ -257,7 +263,7 @@ exports.getStats = async (req, res) => {
     res.json({
       today:   { confirmed: todayAppts.filter((a) => a.status === 'confirmed').length, completed: completed(todayAppts).length, total: todayAppts.length, revenue: sum(completed(todayAppts)) },
       week:    { total: weekAppts.length,  revenue: sum(completed(weekAppts)) },
-      month:   { total: monthAppts.length, revenue: sum(completed(monthAppts)) },
+      month:   { total: monthAppts.length, revenue: sum(completed(monthAppts)), key: monthKey },
       totalUniqueClients: totalClients.length,
       topServices: topServicesNamed,
     });

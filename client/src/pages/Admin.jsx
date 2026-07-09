@@ -38,6 +38,22 @@ function fmt(date) {
 function fmtCurrency(v) {
   return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
 }
+// "2026-07" → "julho de 2026"
+function monthLabel(key) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+// Últimos N meses (YYYY-MM), do atual para trás
+function lastMonths(currentKey, n) {
+  const [cy, cm] = currentKey.split('-').map(Number);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let y = cy, m = cm - i;
+    while (m <= 0) { m += 12; y -= 1; }
+    out.push(`${y}-${String(m).padStart(2, '0')}`);
+  }
+  return out;
+}
 // Horário "HH:MM" → minutos do dia
 function toMin(t) {
   const [h, m] = (t || '0:0').split(':').map(Number);
@@ -146,23 +162,36 @@ export default function Admin() {
 
 /* ─────────────────── DASHBOARD ─────────────────── */
 function TabDashboard() {
+  const currentMonth = todayBR().slice(0, 7);
+  const [month, setMonth] = useState(currentMonth);
   const [stats, setStats] = useState(null);
   const [todayAppts, setTodayAppts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Agenda de hoje — carrega uma vez
   useEffect(() => {
-    const today = todayBR();
-    Promise.all([getStats(), getAppointments({ date: today })])
-      .then(([s, a]) => { setStats(s.data); setTodayAppts(a.data); })
-      .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'))
-      .finally(() => setLoading(false));
+    getAppointments({ date: todayBR() })
+      .then((a) => setTodayAppts(a.data))
+      .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'));
   }, []);
+
+  // Estatísticas — recarrega ao trocar o mês selecionado
+  useEffect(() => {
+    setStatsLoading(true);
+    getStats(month)
+      .then((s) => setStats(s.data))
+      .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'))
+      .finally(() => { setLoading(false); setStatsLoading(false); });
+  }, [month]);
 
   if (loading) return <Spinner />;
   if (error) return <div className="card p-6 text-red-400 text-sm">{error}</div>;
 
   const todayStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const monthOptions = lastMonths(currentMonth, 18);
+  const isCurrentMonth = month === currentMonth;
 
   return (
     <div className="space-y-8">
@@ -178,20 +207,33 @@ function TabDashboard() {
         <KpiCard title="Clientes únicos"   value={stats?.totalUniqueClients ?? 0}    sub="no total"       color="gray" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <KpiCard title="Faturado na semana" value={fmtCurrency(stats?.week.revenue)}  sub={`${stats?.week.total} atendimentos`}  color="blue" />
-        <KpiCard title="Faturado no mês"    value={fmtCurrency(stats?.month.revenue)} sub={`${stats?.month.total} atendimentos`} color="blue" />
-        <KpiCard
-          title="Ticket médio (mês)"
-          value={stats?.month.total ? fmtCurrency(stats.month.revenue / stats.month.total) : 'R$ 0,00'}
-          sub="por atendimento"
-          color="gray"
-        />
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <h2 className="text-white text-lg font-semibold">Resumo do mês</h2>
+          <select
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="bg-[#111] border border-[#333] text-white text-sm rounded-lg px-3 py-2 capitalize focus:outline-none focus:border-blue-500"
+          >
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>{monthLabel(m)}</option>
+            ))}
+          </select>
+        </div>
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity ${statsLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <KpiCard
+            title={`Faturado em ${monthLabel(month)}`}
+            value={fmtCurrency(stats?.month.revenue)}
+            sub={`${stats?.month.total} atendimentos${isCurrentMonth ? ' · até hoje' : ''}`}
+            color="blue"
+          />
+          <KpiCard title="Faturado na semana" value={fmtCurrency(stats?.week.revenue)} sub={`${stats?.week.total} atendimentos · semana atual`} color="gray" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-5">
-          <h3 className="text-white text-sm font-semibold mb-4">Serviços mais solicitados</h3>
+        <div className={`card p-5 transition-opacity ${statsLoading ? 'opacity-50' : ''}`}>
+          <h3 className="text-white text-sm font-semibold mb-4 capitalize">Serviços mais solicitados · {monthLabel(month)}</h3>
           {stats?.topServices?.length === 0 && <p className="text-[#444] text-sm">Nenhum dado ainda.</p>}
           <div className="space-y-3">
             {stats?.topServices?.map((s, i) => (
@@ -202,7 +244,6 @@ function TabDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-white text-sm font-medium">{s.count}x</p>
-                  <p className="text-[#444] text-xs">{fmtCurrency(s.revenue)}</p>
                 </div>
               </div>
             ))}

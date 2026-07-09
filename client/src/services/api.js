@@ -60,7 +60,7 @@ export const getAppointments = (params) => api.get('/appointments', { params });
 export const updateAppointmentStatus = (id, status) => api.patch(`/appointments/${id}/status`, { status });
 export const cancelAppointment = (id) => api.patch(`/appointments/${id}/cancel`);
 export const deleteAppointment = (id) => api.delete(`/appointments/${id}`);
-export const getStats = () => api.get('/appointments/stats');
+export const getStats = (month) => api.get('/appointments/stats', { params: month ? { month } : {} });
 export const getClients = (search) => api.get('/appointments/clients', { params: search ? { search } : {} });
 
 // Admin - Services
