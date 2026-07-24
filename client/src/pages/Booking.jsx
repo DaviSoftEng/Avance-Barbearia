@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { maskPhone, formatPhone, isValidBRPhone } from '../utils/phone';
+import { maskPhone, isValidBRPhone } from '../utils/phone';
 import { getServices, getAvailableSlots, createAppointment, getBusinessHours, getDayBlocks, getBookingSettings } from '../services/api';
 
 const STEPS = ['Serviços', 'Data & Horário', 'Dados', 'Confirmar'];
@@ -130,14 +130,17 @@ export default function Booking() {
   if (success) {
     const apptServices = bookedAppointment.services?.map((as) => as.service) || [];
     const dataFmt = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Emojis por código Unicode (\u{...}) de propósito: não dependem da codificação
+    // do arquivo, então a mensagem nunca sai com emoji quebrado (?? / caracteres tortos).
     const waMsg =
-      `Olá, Ryann! Acabei de confirmar meu agendamento.\n\n` +
-      `*Nome:* ${bookedAppointment.clientName}\n` +
-      `*Telefone:* ${formatPhone(bookedAppointment.clientPhone)}\n` +
-      `*Serviço:* ${apptServices.map((s) => s.name).join(' + ') || '—'}\n` +
-      `*Valor:* ${fmtCurrency(bookedAppointment.price)}\n` +
-      `*Data:* ${dataFmt}\n` +
-      `*Horário:* ${selectedTime}`;
+      `Olá!\u{1F44B}\n` +
+      `Acabei de confirmar meu agendamento!\u{2705}\n\n` +
+      `\u{1F464} Nome: ${bookedAppointment.clientName}\n` +
+      `\u{1F4F1} Telefone: ${bookedAppointment.clientPhone}\n` +
+      `\u{2702}\u{FE0F} Serviço: ${apptServices.map((s) => s.name).join(' + ') || '-'}\n` +
+      `\u{1F4B0} Valor: ${fmtCurrency(bookedAppointment.price)}\n` +
+      `\u{1F4C5} Data: ${dataFmt}\n` +
+      `\u{1F550} Horário: ${selectedTime}`;
     const waUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(waMsg)}` : null;
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6">
