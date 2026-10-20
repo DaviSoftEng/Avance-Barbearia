@@ -12,12 +12,14 @@ const {
   deleteAppointment,
   lookupByPhone,
   getStats,
+  getAnalytics,
   getClients,
 } = require('../controllers/appointmentController');
 
 router.post('/', publicLimiter, createAppointment);
 router.get('/lookup', publicLimiter, lookupByPhone);
 router.get('/stats', auth, getStats);
+router.get('/analytics', auth, getAnalytics);
 router.get('/clients', auth, getClients);
 router.get('/', auth, getAppointments);
 router.put('/:id', auth, validateId, updateAppointment);

@@ -280,6 +280,124 @@ exports.getStats = async (req, res) => {
   }
 };
 
+// Análise de um mês para os gráficos do painel: faturamento por dia, últimos 6 meses,
+// serviços, movimento por dia/horário, comparecimento e clientes novos x que voltaram.
+exports.getAnalytics = async (req, res) => {
+  try {
+    const today    = brToday();
+    const monthKey = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : today.slice(0, 7);
+    const [y, m]   = monthKey.split('-').map(Number);
+    const monthStart = `${monthKey}-01`;
+    const monthEnd   = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+    // 6 meses terminando no mês selecionado (o último é o próprio mês)
+    const monthKeys = Array.from({ length: 6 }, (_, i) => new Date(Date.UTC(y, m - 6 + i, 1)).toISOString().slice(0, 7));
+
+    const [appointments, completedHistory, hours] = await Promise.all([
+      prisma.appointment.findMany({ where: { date: { gte: `${monthKeys[0]}-01`, lte: monthEnd } }, include: APPOINTMENT_INCLUDE }),
+      prisma.appointment.findMany({ where: { status: 'completed' }, select: { clientPhone: true, clientName: true, date: true } }),
+      prisma.businessHours.findMany(),
+    ]);
+
+    const round   = (v) => Math.round(v * 100) / 100;
+    const inMonth = appointments.filter((a) => a.date >= monthStart && a.date <= monthEnd);
+    const done    = inMonth.filter((a) => a.status === 'completed');
+
+    // Faturamento por dia (só concluídos)
+    const daily = Array.from({ length: Number(monthEnd.slice(8)) }, (_, i) => ({
+      date: `${monthKey}-${String(i + 1).padStart(2, '0')}`, revenue: 0, count: 0,
+    }));
+    for (const a of done) {
+      const d = daily[Number(a.date.slice(8)) - 1];
+      d.revenue += a.price;
+      d.count++;
+    }
+    daily.forEach((d) => { d.revenue = round(d.revenue); });
+
+    const months = monthKeys.map((key) => {
+      const list = appointments.filter((a) => a.status === 'completed' && a.date.startsWith(key));
+      return { key, revenue: round(list.reduce((s, a) => s + a.price, 0)), count: list.length };
+    });
+
+    // Serviços concluídos no mês. Atendimento com vários serviços tem o valor dividido
+    // proporcionalmente ao preço de cada um.
+    const svcMap = {};
+    for (const a of done) {
+      const items = a.services.map((s) => s.service).filter(Boolean);
+      const base  = items.reduce((s, sv) => s + sv.price, 0);
+      for (const sv of items) {
+        const e = svcMap[sv.id] || (svcMap[sv.id] = { name: sv.name.trim(), count: 0, revenue: 0 });
+        e.count++;
+        e.revenue += base > 0 ? a.price * (sv.price / base) : a.price / items.length;
+      }
+    }
+    const services = Object.values(svcMap)
+      .map((e) => ({ ...e, revenue: round(e.revenue) }))
+      .sort((a, b) => b.revenue - a.revenue || b.count - a.count)
+      .slice(0, 8);
+
+    // Movimento por dia da semana x hora: tudo que ocupou a agenda (cancelados não contam)
+    const busy = inMonth.filter((a) => a.status !== 'cancelled');
+    const open = hours.filter((h) => h.isOpen);
+    const daySet = new Set(open.map((h) => h.dayOfWeek));
+    let hMin = open.length ? Math.min(...open.map((h) => Number(h.openTime.slice(0, 2)))) : 9;
+    let hMax = open.length ? Math.max(...open.map((h) => Math.ceil(timeToMinutes(h.closeTime) / 60) - 1)) : 18;
+    const cells = {};
+    for (const a of busy) {
+      const dow = new Date(a.date + 'T12:00:00').getDay();
+      const hour = Number(a.time.slice(0, 2));
+      daySet.add(dow);
+      hMin = Math.min(hMin, hour);
+      hMax = Math.max(hMax, hour);
+      cells[`${dow}-${hour}`] = (cells[`${dow}-${hour}`] || 0) + 1;
+    }
+    const heatmap = {
+      days: [...daySet].sort((a, b) => a - b),
+      hours: Array.from({ length: hMax - hMin + 1 }, (_, i) => hMin + i),
+      cells,
+    };
+
+    // Comparecimento até hoje (confirmados futuros ainda não aconteceram)
+    const past = inMonth.filter((a) => a.date <= today);
+    const status = {
+      completed: past.filter((a) => a.status === 'completed').length,
+      no_show:   past.filter((a) => a.status === 'no_show').length,
+      cancelled: past.filter((a) => a.status === 'cancelled').length,
+      pending:   past.filter((a) => a.status === 'confirmed').length,
+    };
+
+    // Clientes atendidos no mês; "novo" = primeira visita concluída da história foi neste mês
+    const firstVisit = {};
+    for (const a of completedHistory) {
+      const k = clientKey(a);
+      if (!firstVisit[k] || a.date < firstVisit[k]) firstVisit[k] = a.date;
+    }
+    const monthClients = new Set(done.map(clientKey));
+    const newClients = [...monthClients].filter((k) => firstVisit[k] >= monthStart).length;
+
+    // Comparação justa: no mês corrente, compara com o mesmo período do mês anterior
+    // (ex.: 1 a 20/out x 1 a 20/set), não com o mês anterior inteiro
+    const isCurrent = monthKey === today.slice(0, 7);
+    const prevRevenue = isCurrent
+      ? round(appointments
+          .filter((a) => a.status === 'completed' && a.date.startsWith(monthKeys[4]) && a.date.slice(8) <= today.slice(8))
+          .reduce((s, a) => s + a.price, 0))
+      : months[4].revenue;
+
+    res.json({
+      month: monthKey,
+      revenue: months[5].revenue,
+      prevRevenue,
+      prevIsPartial: isCurrent,
+      completed: done.length,
+      daily, months, services, heatmap, status,
+      clients: { total: monthClients.size, new: newClients, returning: monthClients.size - newClients },
+    });
+  } catch (e) {
+    console.error('[getAnalytics]', e);
+    res.status(500).json({ error: 'Erro ao buscar análise do mês' });
+  }
+};
+
 exports.getClients = async (req, res) => {
   const { search } = req.query;
   try {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   getAppointments, updateAppointmentStatus, updateAppointment, cancelAppointment, deleteAppointment,
-  getStats, getClients,
+  getStats, getAnalytics, getClients,
   getAllServices, createService, updateService, deleteService, uploadServiceImage,
   getRecurringBlocks, createRecurringBlock, updateRecurringBlock, deleteRecurringBlock, completeRecurring,
   getRecurringExceptions, createRecurringException, deleteRecurringException,
@@ -12,6 +12,7 @@ import {
 import { mediaUrl } from '../services/api';
 import { maskPhone, formatPhone, isValidBRPhone } from '../utils/phone';
 import { whatsappUrl } from '../utils/whatsapp';
+import { ColumnChart, BarList, StatusBar, Heatmap, DataTable } from '../components/Charts';
 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -37,12 +38,27 @@ function fmt(date) {
   return new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 function fmtCurrency(v) {
-  return `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+  return `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 // "2026-07" → "julho de 2026"
 function monthLabel(key) {
   const [y, m] = key.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+// "2026-07" → "jul"
+function monthShort(key) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+}
+// "2026-07-14" → "14/07"
+function fmtDayMonth(date) {
+  return `${date.slice(8)}/${date.slice(5, 7)}`;
+}
+// Valor compacto para eixos e rótulos de gráfico: 850 → "R$ 850", 1250 → "R$ 1,3 mil"
+function moneyShort(v) {
+  return v >= 1000
+    ? `R$ ${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil`
+    : `R$ ${Math.round(v)}`;
 }
 // Últimos N meses (YYYY-MM), do atual para trás
 function lastMonths(currentKey, n) {
@@ -160,23 +176,24 @@ function TabDashboard() {
   const currentMonth = todayBR().slice(0, 7);
   const [month, setMonth] = useState(currentMonth);
   const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [todayAppts, setTodayAppts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Agenda de hoje — carrega uma vez
+  // Hoje e semana — carrega uma vez
   useEffect(() => {
-    getAppointments({ date: todayBR() })
-      .then((a) => setTodayAppts(a.data))
+    Promise.all([getAppointments({ date: todayBR() }), getStats()])
+      .then(([a, s]) => { setTodayAppts(a.data); setStats(s.data); })
       .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'));
   }, []);
 
-  // Estatísticas — recarrega ao trocar o mês selecionado
+  // Análise do mês — recarrega ao trocar o mês (mantém os gráficos esmaecidos enquanto carrega)
   useEffect(() => {
     setStatsLoading(true);
-    getStats(month)
-      .then((s) => setStats(s.data))
+    getAnalytics(month)
+      .then((r) => setAnalytics(r.data))
       .catch(() => setError('Erro ao carregar dados. Verifique a conexão com o servidor.'))
       .finally(() => { setLoading(false); setStatsLoading(false); });
   }, [month]);
@@ -188,6 +205,13 @@ function TabDashboard() {
   const monthOptions = lastMonths(currentMonth, 18);
   const isCurrentMonth = month === currentMonth;
 
+  const a = analytics;
+  const delta = a.prevRevenue > 0 ? Math.round(((a.revenue - a.prevRevenue) / a.prevRevenue) * 100) : null;
+  const attended = a.status.completed + a.status.no_show;
+  const showRate = attended ? Math.round((a.status.completed / attended) * 100) : null;
+  const bestDay = a.daily.reduce((best, d) => (d.revenue > best.revenue ? d : best), a.daily[0]);
+  const busyTotal = Object.values(a.heatmap.cells).reduce((s, n) => s + n, 0);
+
   return (
     <div className="space-y-8">
       <div>
@@ -198,69 +222,129 @@ function TabDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard title="Confirmados hoje"  value={stats?.today.confirmed ?? 0}       sub="agendamentos"   color="blue" />
         <KpiCard title="Concluídos hoje"   value={stats?.today.completed ?? 0}       sub="atendimentos"   color="green" />
-        <KpiCard title="Faturado hoje"     value={fmtCurrency(stats?.today.revenue)} sub="em concluídos"  color="blue" />
+        <KpiCard title="Faturado hoje"     value={fmtCurrency(stats?.today.revenue)} sub={`semana: ${fmtCurrency(stats?.week.revenue)}`} color="blue" />
         <KpiCard title="Clientes únicos"   value={stats?.totalUniqueClients ?? 0}    sub="no total"       color="gray" />
       </div>
 
-      <div>
-        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <h2 className="text-white text-lg font-semibold">Resumo do mês</h2>
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="bg-[#111] border border-[#333] text-white text-base sm:text-sm rounded-lg px-3 py-2 capitalize focus:outline-none focus:border-blue-500"
-          >
-            {monthOptions.map((m) => (
-              <option key={m} value={m}>{monthLabel(m)}</option>
-            ))}
-          </select>
-        </div>
-        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 transition-opacity ${statsLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      {/* Filtro do mês: uma linha acima de tudo que ele afeta */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-white text-lg font-semibold">Análise do mês</h2>
+        <select
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="bg-[#111] border border-[#333] text-white text-base sm:text-sm rounded-lg px-3 py-2 capitalize focus:outline-none focus:border-blue-500"
+        >
+          {monthOptions.map((m) => (
+            <option key={m} value={m}>{monthLabel(m)}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className={`space-y-6 transition-opacity ${statsLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
-            title={`Faturado em ${monthLabel(month)}`}
-            value={fmtCurrency(stats?.month.revenue)}
-            sub={`${stats?.month.total} atendimentos${isCurrentMonth ? ' · até hoje' : ''}`}
-            color="blue"
+            title="Faturado no mês" value={fmtCurrency(a.revenue)} delta={delta} color="blue"
+            sub={delta === null ? 'sem mês anterior p/ comparar' : a.prevIsPartial ? 'vs mesmo período do mês anterior' : 'vs mês anterior'}
           />
-          <KpiCard title="Faturado na semana" value={fmtCurrency(stats?.week.revenue)} sub={`${stats?.week.total} atendimentos · semana atual`} color="gray" />
+          <KpiCard title="Atendimentos" value={a.completed} sub={isCurrentMonth ? 'concluídos até hoje' : 'concluídos no mês'} color="gray" />
+          <KpiCard title="Clientes atendidos" value={a.clients.total} sub={`${a.clients.new} novo${a.clients.new !== 1 ? 's' : ''} · ${a.clients.returning} voltaram`} color="gray" />
+          <KpiCard title="Comparecimento" value={showRate === null ? '—' : `${showRate}%`} sub={`${a.status.no_show} falta${a.status.no_show !== 1 ? 's' : ''} · sem contar cancelados`} color="green" />
+        </div>
+
+        <ChartCard
+          title="Faturamento por dia"
+          sub={bestDay.revenue > 0 ? `Melhor dia: ${fmtDayMonth(bestDay.date)} · ${fmtCurrency(bestDay.revenue)}` : 'Nenhum atendimento concluído neste mês.'}
+        >
+          <ColumnChart
+            ariaLabel="Faturamento por dia do mês"
+            data={a.daily.map((d) => {
+              const day = Number(d.date.slice(8));
+              return {
+                key: d.date, value: d.revenue,
+                axisLabel: day === 1 || day % 5 === 0 ? String(day) : '',
+                tipValue: fmtCurrency(d.revenue),
+                tipLabel: `${fmtDayMonth(d.date)} · ${d.count} atendimento${d.count !== 1 ? 's' : ''}`,
+              };
+            })}
+            labelKeys={bestDay.revenue > 0 ? [bestDay.date] : []}
+            format={moneyShort}
+          />
+          <DataTable
+            columns={['Dia', 'Atendimentos', 'Faturado']}
+            rows={a.daily.filter((d) => d.count > 0).map((d) => [fmtDayMonth(d.date), d.count, fmtCurrency(d.revenue)])}
+          />
+        </ChartCard>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartCard title="Últimos 6 meses" sub="Faturamento em concluídos · mês selecionado em destaque">
+            <ColumnChart
+              ariaLabel="Faturamento dos últimos 6 meses"
+              data={a.months.map((m) => ({
+                key: m.key, value: m.revenue, axisLabel: monthShort(m.key),
+                tipValue: fmtCurrency(m.revenue),
+                tipLabel: `${monthLabel(m.key)} · ${m.count} atendimentos`,
+              }))}
+              highlight={month}
+              labelKeys={[month]}
+              format={moneyShort}
+            />
+            <DataTable columns={['Mês', 'Atendimentos', 'Faturado']} rows={a.months.map((m) => [monthLabel(m.key), m.count, fmtCurrency(m.revenue)])} />
+          </ChartCard>
+
+          <ChartCard title="Comparecimento" sub="Agendamentos até hoje neste mês">
+            <StatusBar counts={a.status} />
+            {a.status.pending > 0 && (
+              <p className="text-[#555] text-xs mt-4">&quot;Sem marcar&quot; são horários que já passaram e continuam como confirmados — marque como concluído ou faltou na Agenda.</p>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Serviços que mais faturam" sub="Concluídos no mês · quantidade ao lado">
+            {a.services.length === 0
+              ? <p className="text-[#555] text-sm">Nenhum serviço concluído neste mês.</p>
+              : <BarList data={a.services.map((s) => ({ key: s.name, label: s.name, value: s.revenue, count: s.count }))} format={fmtCurrency} sub={(d) => `${d.count}x`} />}
+            <DataTable columns={['Serviço', 'Qtd.', 'Faturado']} rows={a.services.map((s) => [s.name, s.count, fmtCurrency(s.revenue)])} />
+          </ChartCard>
+
+          <ChartCard title="Movimento por dia e horário" sub="Agendamentos do mês, sem cancelados · mais claro = mais cheio">
+            {busyTotal === 0
+              ? <p className="text-[#555] text-sm">Nenhum agendamento neste mês.</p>
+              : <Heatmap days={a.heatmap.days} hours={a.heatmap.hours} cells={a.heatmap.cells} />}
+            <DataTable
+              columns={['Dia', 'Horário', 'Agendamentos']}
+              rows={Object.entries(a.heatmap.cells)
+                .map(([k, n]) => { const [d, h] = k.split('-').map(Number); return [d, h, n]; })
+                .sort((x, y) => y[2] - x[2])
+                .map(([d, h, n]) => [DAYS_FULL[d], `${String(h).padStart(2, '0')}h`, n])}
+            />
+          </ChartCard>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className={`card p-5 transition-opacity ${statsLoading ? 'opacity-50' : ''}`}>
-          <h3 className="text-white text-sm font-semibold mb-4 capitalize">Serviços mais solicitados · {monthLabel(month)}</h3>
-          {stats?.topServices?.length === 0 && <p className="text-[#444] text-sm">Nenhum dado ainda.</p>}
-          <div className="space-y-3">
-            {stats?.topServices?.map((s, i) => (
-              <div key={s.serviceId} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-[#333] text-xs font-mono w-4">{i + 1}</span>
-                  <span className="text-[#aaa] text-sm">{s.name}</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-white text-sm font-medium">{s.count}x</p>
-                </div>
+      <div className="card p-5">
+        <h3 className="text-white text-sm font-semibold mb-4">Agenda de hoje</h3>
+        {todayAppts.length === 0 && <p className="text-[#444] text-sm">Nenhum agendamento hoje.</p>}
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {todayAppts.map((a) => (
+            <div key={a.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${STATUS_CONFIG[a.status]?.bg}`}>
+              <div>
+                <p className="text-white text-sm font-medium">{a.time} · {a.clientName}</p>
+                <p className="text-[#555] text-xs">{apptServiceNames(a)}</p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card p-5">
-          <h3 className="text-white text-sm font-semibold mb-4">Agenda de hoje</h3>
-          {todayAppts.length === 0 && <p className="text-[#444] text-sm">Nenhum agendamento hoje.</p>}
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {todayAppts.map((a) => (
-              <div key={a.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border ${STATUS_CONFIG[a.status]?.bg}`}>
-                <div>
-                  <p className="text-white text-sm font-medium">{a.time} · {a.clientName}</p>
-                  <p className="text-[#555] text-xs">{apptServiceNames(a)}</p>
-                </div>
-                <span className={`text-xs ${STATUS_CONFIG[a.status]?.color}`}>{STATUS_CONFIG[a.status]?.label}</span>
-              </div>
-            ))}
-          </div>
+              <span className={`text-xs ${STATUS_CONFIG[a.status]?.color}`}>{STATUS_CONFIG[a.status]?.label}</span>
+            </div>
+          ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ChartCard({ title, sub, children }) {
+  return (
+    <div className="card p-5">
+      <h3 className="text-white text-sm font-semibold">{title}</h3>
+      {sub && <p className="text-[#555] text-xs mt-0.5">{sub}</p>}
+      <div className="mt-4">{children}</div>
     </div>
   );
 }
@@ -1331,13 +1415,22 @@ function EditFixoModal({ block, services, onClose, onSaved }) {
 }
 
 /* ─────────────────── SHARED ─────────────────── */
-function KpiCard({ title, value, sub, color }) {
+function KpiCard({ title, value, sub, color, delta }) {
   const colors = { blue: 'text-blue-400', green: 'text-green-400', gray: 'text-white' };
   return (
     <div className="card p-5">
       <p className="text-[#444] text-xs mb-3">{title}</p>
-      <p className={`text-2xl font-bold ${colors[color] || 'text-white'}`}>{value}</p>
-      {sub && <p className="text-[#333] text-xs mt-1">{sub}</p>}
+      <p className={`text-xl sm:text-2xl font-bold whitespace-nowrap ${colors[color] || 'text-white'}`}>{value}</p>
+      {(sub || delta != null) && (
+        <p className="text-[#333] text-xs mt-1">
+          {delta != null && (
+            <span className={`font-semibold mr-1 ${delta >= 0 ? 'text-green-500' : 'text-red-400'}`}>
+              {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}%
+            </span>
+          )}
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
