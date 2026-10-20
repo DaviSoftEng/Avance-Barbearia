@@ -41,7 +41,7 @@ export default function Navbar() {
             className="h-7 w-7 rounded-full object-cover transition-opacity duration-200 group-hover:opacity-80"
           />
           <span className="text-white font-semibold text-sm tracking-tight">
-            Barbearia <span className="text-blue-500">Avance</span>
+            Barbearia's <span className="text-blue-500">Avance</span>
           </span>
         </Link>
 

@@ -57,7 +57,7 @@ export default function MeuAgendamento() {
   return (
     <div className="min-h-[80vh] px-6 py-16">
       <div className="max-w-lg mx-auto">
-        <p className="section-label mb-3">Barbearia Avance · Ryann França</p>
+        <p className="section-label mb-3">Barbearia's Avance · Ryann França</p>
         <h1 className="text-3xl font-bold text-white mb-2">Meu agendamento</h1>
         <p className="text-[#444] text-sm mb-10">Consulte seu horário usando o número de telefone que usou no agendamento. Para cancelar ou remarcar, fale direto com o Ryann.</p>
 

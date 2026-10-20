@@ -103,7 +103,7 @@ export default function Home() {
         <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pt-36 pb-16 flex flex-col justify-between min-h-screen">
           <div className="relative min-w-0 max-w-full">
             <p className="section-label mb-8" style={{ animation: 'fadeInUp 0.7s ease 0.1s both' }}>
-              Barbearia Avance · Ryann França
+              Barbearia's Avance · Ryann França
             </p>
             <h1
               className="text-[clamp(3rem,8vw,6.5rem)] font-bold leading-[0.92] tracking-tight text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.5)]"
@@ -209,7 +209,7 @@ export default function Home() {
                 Ryann<br />França
               </h2>
               <p className="text-[#555] leading-relaxed mb-4">
-                A Barbearia Avance nasceu da crença de que cuidar da aparência é, antes de tudo, um ato de respeito próprio. Ryann França percebeu que muitos homens deixam isso de lado no dia a dia — e criou um espaço onde você para, é bem atendido e sai se sentindo no seu melhor.
+                A Barbearia's Avance nasceu da crença de que cuidar da aparência é, antes de tudo, um ato de respeito próprio. Ryann França percebeu que muitos homens deixam isso de lado no dia a dia — e criou um espaço onde você para, é bem atendido e sai se sentindo no seu melhor.
               </p>
               <p className="text-[#444] leading-relaxed mb-8 text-sm">
                 Com 2 anos de ofício e dedicação em cada atendimento, Ryann une técnica e atenção genuína ao cliente. Aqui não é só corte de cabelo — é o momento da semana que você reserva pra si mesmo.
@@ -306,7 +306,7 @@ export default function Home() {
                 <div className="relative rounded-2xl overflow-hidden border border-[#1E1E1E] bg-[#0e0e0e]">
                   <img
                     src="/fachada.jpg"
-                    alt="Barbearia Avance — Fachada"
+                    alt="Barbearia's Avance — Fachada"
                     className="w-full h-56 object-cover"
                     onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
                   />
@@ -320,7 +320,7 @@ export default function Home() {
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    title="Localização da Barbearia Avance"
+                    title="Localização da Barbearia's Avance"
                   />
                   <div className="absolute inset-0 bg-blue-900/10 pointer-events-none" />
                 </div>
@@ -376,7 +376,7 @@ export default function Home() {
             <div className="col-span-2 lg:col-span-1">
               <div className="flex items-center gap-2.5 mb-4">
                 <img src="/logo.jpeg" alt="Avance" className="h-8 w-8 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <span className="text-white font-semibold">Barbearia <span className="text-blue-500">Avance</span></span>
+                <span className="text-white font-semibold">Barbearia's <span className="text-blue-500">Avance</span></span>
               </div>
               <p className="text-[#555] text-sm leading-relaxed max-w-xs">
                 Estilo, autoestima e confiança em cada corte. Agende online e saia impecável.
@@ -447,7 +447,7 @@ export default function Home() {
           </div>
 
           <div className="border-t border-[#141414] mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <span className="text-[#333] text-xs">© {new Date().getFullYear()} Barbearia Avance · Ryann França — Todos os direitos reservados.</span>
+            <span className="text-[#333] text-xs">© {new Date().getFullYear()} Barbearia's Avance · Ryann França — Todos os direitos reservados.</span>
             <span className="text-[#222] text-xs">Jardim América · Belford Roxo — RJ</span>
           </div>
         </div>

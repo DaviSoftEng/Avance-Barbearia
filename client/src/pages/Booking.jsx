@@ -235,7 +235,7 @@ export default function Booking() {
     <div className="min-h-[80vh] px-6 py-16">
       <div className="max-w-2xl mx-auto">
         <div className="mb-10">
-          <p className="section-label mb-3">Barbearia Avance · Ryann França</p>
+          <p className="section-label mb-3">Barbearia's Avance · Ryann França</p>
           <h1 className="text-3xl font-bold text-white">Agendar horário</h1>
         </div>
 

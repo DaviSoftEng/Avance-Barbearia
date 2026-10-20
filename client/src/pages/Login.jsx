@@ -31,7 +31,7 @@ export default function Login() {
         <div className="mb-8">
           <p className="section-label mb-4">Área restrita</p>
           <h1 className="text-3xl font-bold text-white">Entrar</h1>
-          <p className="text-[#444] text-sm mt-1">Painel da Barbearia Avance</p>
+          <p className="text-[#444] text-sm mt-1">Painel da Barbearia's Avance</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">
