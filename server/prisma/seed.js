@@ -32,6 +32,40 @@ const HOURS = [
   { dayOfWeek: 6, isOpen: true,  openTime: '09:00', closeTime: '17:00' }, // Sáb
 ];
 
+// Reajuste de preços pedido pelo Ryann (out/2026). Aplicado UMA vez por banco (marcado em
+// Setting) — depois disso, preços mexidos pelo painel não são sobrescritos em novos deploys.
+// Busca pelo nome como está em produção; nome não encontrado só gera aviso no log.
+const PRICE_UPDATE_KEY = 'migration:precos-2026-10';
+const PRICE_UPDATE = [
+  { name: 'Barba',                         price: 25 },
+  { name: 'Infantil',                      price: 45, description: 'A partir de 4 anos' },
+  { name: 'Corte',                         price: 40 },
+  { name: 'Corte + Cavanhaque Pigmentado', price: 45 },
+  { name: 'Corte + Pigmentação',           price: 50 },
+  { name: 'Corte + Barba',                 price: 60 },
+  { name: 'Corte + Barba e Sobrancelha',   active: false },
+  { name: 'Corte + Nevou',                 price: 100 },
+  { name: 'Corte + Reflexo',               price: 100 },
+  { name: 'Corte + Vermelhou',             price: 100 },
+];
+
+async function applyPriceUpdate() {
+  if (await prisma.setting.findUnique({ where: { key: PRICE_UPDATE_KEY } })) return;
+
+  const norm = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase();
+  const services = await prisma.service.findMany();
+  for (const { name, ...data } of PRICE_UPDATE) {
+    const matches = services.filter((s) => norm(s.name) === norm(name));
+    if (matches.length === 0) {
+      console.warn(`⚠️  Reajuste: serviço "${name}" não encontrado — ajuste pelo painel.`);
+      continue;
+    }
+    await prisma.service.updateMany({ where: { id: { in: matches.map((s) => s.id) } }, data });
+    console.log(`💲 Reajuste: ${name} →`, JSON.stringify(data));
+  }
+  await prisma.setting.create({ data: { key: PRICE_UPDATE_KEY, value: new Date().toISOString() } });
+}
+
 async function main() {
   const name = process.env.ADMIN_NAME || 'Administrador';
   const email = process.env.ADMIN_EMAIL;
@@ -60,6 +94,8 @@ async function main() {
   if ((await prisma.businessHours.count()) === 0) {
     await prisma.businessHours.createMany({ data: HOURS });
   }
+
+  await applyPriceUpdate();
 
   console.log('✅ Seed concluído!');
   console.log(`👤 Admin: ${email}`);
