@@ -208,7 +208,7 @@ function TabDashboard() {
           <select
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="bg-[#111] border border-[#333] text-white text-sm rounded-lg px-3 py-2 capitalize focus:outline-none focus:border-blue-500"
+            className="bg-[#111] border border-[#333] text-white text-base sm:text-sm rounded-lg px-3 py-2 capitalize focus:outline-none focus:border-blue-500"
           >
             {monthOptions.map((m) => (
               <option key={m} value={m}>{monthLabel(m)}</option>
@@ -1123,11 +1123,11 @@ function TabConfig() {
                 <>
                   <div>
                     <label className="text-[#333] text-xs block">Abre</label>
-                    <input type="time" value={h.openTime} onChange={(e) => updateHour(idx, 'openTime', e.target.value)} className="input-field py-1.5 text-sm w-28" />
+                    <input type="time" value={h.openTime} onChange={(e) => updateHour(idx, 'openTime', e.target.value)} className="input-field py-1.5 w-28" />
                   </div>
                   <div>
                     <label className="text-[#333] text-xs block">Fecha</label>
-                    <input type="time" value={h.closeTime} onChange={(e) => updateHour(idx, 'closeTime', e.target.value)} className="input-field py-1.5 text-sm w-28" />
+                    <input type="time" value={h.closeTime} onChange={(e) => updateHour(idx, 'closeTime', e.target.value)} className="input-field py-1.5 w-28" />
                   </div>
                 </>
               )}
