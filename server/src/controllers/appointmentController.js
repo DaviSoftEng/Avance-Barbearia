@@ -14,6 +14,13 @@ const APPOINTMENT_INCLUDE = {
   services: { include: { service: true } },
 };
 
+// Identifica o cliente pelo telefone normalizado (só dígitos): agendamentos antigos foram
+// salvos formatados ("(21) 98035-0062") e os novos só com dígitos — sem normalizar, o mesmo
+// cliente vira dois. Sem telefone (cliente fixo sem número), cai no nome.
+function clientKey(appt) {
+  return normalizePhone(appt.clientPhone) || `nome:${appt.clientName.trim().toLowerCase()}`;
+}
+
 exports.createAppointment = async (req, res) => {
   const { clientName, clientPhone, serviceIds, date, time, notes } = req.body;
 
@@ -239,7 +246,7 @@ exports.getStats = async (req, res) => {
       prisma.appointment.findMany({ where: { date: today }, include: APPOINTMENT_INCLUDE }),
       prisma.appointment.findMany({ where: { date: { gte: startOfWeekStr, lte: today }, status: { in: ['confirmed', 'completed'] } } }),
       prisma.appointment.findMany({ where: { date: monthRange, status: { in: ['confirmed', 'completed'] } } }),
-      prisma.appointment.groupBy({ by: ['clientPhone'], _count: { clientPhone: true } }),
+      prisma.appointment.findMany({ select: { clientPhone: true, clientName: true } }),
       prisma.appointmentService.groupBy({
         by: ['serviceId'],
         _count: { serviceId: true },
@@ -264,7 +271,7 @@ exports.getStats = async (req, res) => {
       today:   { confirmed: todayAppts.filter((a) => a.status === 'confirmed').length, completed: completed(todayAppts).length, total: todayAppts.length, revenue: sum(completed(todayAppts)) },
       week:    { total: weekAppts.length,  revenue: sum(completed(weekAppts)) },
       month:   { total: monthAppts.length, revenue: sum(completed(monthAppts)), key: monthKey },
-      totalUniqueClients: totalClients.length,
+      totalUniqueClients: new Set(totalClients.map(clientKey)).size,
       topServices: topServicesNamed,
     });
   } catch (e) {
@@ -276,19 +283,18 @@ exports.getStats = async (req, res) => {
 exports.getClients = async (req, res) => {
   const { search } = req.query;
   try {
-    const where = {};
-    if (search) where.OR = [{ clientName: { contains: search } }, { clientPhone: { contains: search } }];
+    // Busca feita depois de normalizar: o telefone pode estar salvo formatado ou só com dígitos
     const appointments = await prisma.appointment.findMany({
-      where,
       include: APPOINTMENT_INCLUDE,
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });
 
     const clientMap = {};
     for (const appt of appointments) {
-      const key = appt.clientPhone;
+      const key = clientKey(appt);
       if (!clientMap[key]) {
-        clientMap[key] = { clientName: appt.clientName, clientPhone: appt.clientPhone, totalVisits: 0, totalSpent: 0, lastVisit: null, appointments: [] };
+        // Ordenado do mais recente → nome e telefone exibidos são os do último agendamento
+        clientMap[key] = { id: key, clientName: appt.clientName, clientPhone: normalizePhone(appt.clientPhone), totalVisits: 0, totalSpent: 0, lastVisit: null, appointments: [] };
       }
       const c = clientMap[key];
       c.appointments.push(appt);
@@ -299,7 +305,16 @@ exports.getClients = async (req, res) => {
       if (!c.lastVisit || appt.date > c.lastVisit) c.lastVisit = appt.date;
     }
 
-    res.json(Object.values(clientMap).sort((a, b) => (b.lastVisit > a.lastVisit ? 1 : -1)));
+    let clients = Object.values(clientMap);
+    if (search) {
+      const q = search.trim().toLowerCase();
+      const digits = normalizePhone(search);
+      clients = clients.filter((c) =>
+        c.appointments.some((a) => a.clientName.toLowerCase().includes(q))
+        || (digits && c.clientPhone.includes(digits))
+      );
+    }
+    res.json(clients.sort((a, b) => (b.lastVisit > a.lastVisit ? 1 : -1)));
   } catch (e) {
     console.error('[getClients]', e);
     res.status(500).json({ error: 'Erro ao buscar clientes' });
