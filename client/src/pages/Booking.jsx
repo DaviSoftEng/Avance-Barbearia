@@ -278,20 +278,26 @@ export default function Booking() {
                 );
               })}
             </div>
-            {selectedServices.length > 0 && (
-              <div className="card p-4 mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-[#555] text-xs">{selectedServices.length} serviço{selectedServices.length !== 1 ? 's' : ''} · {totalDuration} min</p>
-                  <p className="text-white font-bold text-lg mt-0.5">{fmtCurrency(totalPrice)}</p>
+            {/* Barra fixa no rodapé: o cliente escolhe no topo da lista e não precisa rolar
+                até o fim para achar o "Continuar" */}
+            <div className="sticky bottom-3 z-10">
+              {selectedServices.length > 0 ? (
+                <div className="card p-4 flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.6)] border-blue-900/50">
+                  <div className="min-w-0">
+                    <p className="text-[#555] text-xs truncate">{selectedServices.map((s) => s.name).join(' + ')} · {totalDuration} min</p>
+                    <p className="text-white font-bold text-lg mt-0.5">{fmtCurrency(totalPrice)}</p>
+                  </div>
+                  <button onClick={() => setStep(1)} className="btn-primary px-6 py-2.5 text-sm ml-3 shrink-0">
+                    Continuar →
+                  </button>
                 </div>
-                <button onClick={() => setStep(1)} className="btn-primary px-6 py-2.5 text-sm">
-                  Continuar →
-                </button>
-              </div>
-            )}
-            {selectedServices.length === 0 && (
-              <button disabled className="btn-primary w-full py-3 text-sm opacity-20 cursor-not-allowed">Continuar</button>
-            )}
+              ) : (
+                <div className="card p-4 flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+                  <p className="text-[#555] text-sm">Toque em um serviço para escolher</p>
+                  <button disabled className="btn-primary px-6 py-2.5 text-sm ml-3 shrink-0 opacity-20 cursor-not-allowed">Continuar</button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
