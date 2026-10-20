@@ -11,6 +11,7 @@ import {
 } from '../services/api';
 import { mediaUrl } from '../services/api';
 import { maskPhone, formatPhone, isValidBRPhone } from '../utils/phone';
+import { whatsappUrl } from '../utils/whatsapp';
 
 const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -71,12 +72,6 @@ function durLabel(mins) {
   const h = Math.floor((mins || 0) / 60);
   const m = (mins || 0) % 60;
   return h ? `${h}h${m ? ` ${m}min` : ''}` : `${m}min`;
-}
-// Link de WhatsApp a partir do telefone (Brasil: garante DDI 55)
-function waLink(phone) {
-  const d = (phone || '').replace(/\D/g, '');
-  const full = d.startsWith('55') ? d : `55${d}`;
-  return `https://wa.me/${full}`;
 }
 // Data local em YYYY-MM-DD (sem conversão para UTC)
 function ymd(d) {
@@ -678,7 +673,7 @@ function ApptRow({ a, onEdit, onStatusChange, onDelete }) {
   const end = addMin(a.time, a.totalDuration || 0);
   const st = STATUS_CONFIG[a.status];
   const waMsg = `Olá ${a.clientName}! 👋 Sobre seu agendamento: ${apptServiceNames(a)} — ${fmt(a.date)} às ${a.time}. Qualquer dúvida, é só me chamar por aqui. 😊`;
-  const waHref = `${waLink(a.clientPhone)}?text=${encodeURIComponent(waMsg)}`;
+  const waHref = whatsappUrl(a.clientPhone, waMsg);
   return (
     <div className={`card border ${st?.bg} p-4`}>
       <div className="flex gap-4">
@@ -785,9 +780,9 @@ function TabClientes() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {clients.map((c) => (
             <div
-              key={c.clientPhone}
-              className={`card p-4 cursor-pointer transition-all hover:border-blue-900/50 ${selected === c.clientPhone ? 'border-blue-800/60' : ''}`}
-              onClick={() => setSelected(selected === c.clientPhone ? null : c.clientPhone)}
+              key={c.id}
+              className={`card p-4 cursor-pointer transition-all hover:border-blue-900/50 ${selected === c.id ? 'border-blue-800/60' : ''}`}
+              onClick={() => setSelected(selected === c.id ? null : c.id)}
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -801,7 +796,7 @@ function TabClientes() {
               </div>
               {c.lastVisit && <p className="text-[#333] text-xs mt-2">Última: {fmt(c.lastVisit)}</p>}
 
-              {selected === c.clientPhone && (
+              {selected === c.id && (
                 <div className="mt-4 border-t border-[#1a1a1a] pt-4 space-y-2">
                   <p className="text-[#444] text-xs mb-3">Histórico</p>
                   {c.appointments.slice(0, 8).map((a) => (

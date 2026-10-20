@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { maskPhone, isValidBRPhone } from '../utils/phone';
+import { whatsappUrl } from '../utils/whatsapp';
 import { getServices, getAvailableSlots, createAppointment, getBusinessHours, getDayBlocks, getBookingSettings } from '../services/api';
 
 const STEPS = ['Serviços', 'Data & Horário', 'Dados', 'Confirmar'];
@@ -12,6 +13,24 @@ function fmtCurrency(v) {
 }
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Mensagem de confirmação que o cliente envia para o WhatsApp da barbearia.
+// Emojis por código Unicode (\u{...}) de propósito: não dependem da codificação
+// do arquivo, então a mensagem nunca sai com emoji quebrado (?? / caracteres tortos).
+function confirmationMsg(appt) {
+  const services = appt.services?.map((as) => as.service) || [];
+  const dataFmt = new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return (
+    `Olá!\u{1F44B}\n` +
+    `Acabei de confirmar meu agendamento!\u{2705}\n\n` +
+    `\u{1F464} Nome: ${appt.clientName}\n` +
+    `\u{1F4F1} Telefone: ${appt.clientPhone}\n` +
+    `\u{2702}\u{FE0F} Serviço: ${services.map((s) => s.name).join(' + ') || '-'}\n` +
+    `\u{1F4B0} Valor: ${fmtCurrency(appt.price)}\n` +
+    `\u{1F4C5} Data: ${dataFmt}\n` +
+    `\u{1F550} Horário: ${appt.time}`
+  );
 }
 
 export default function Booking() {
@@ -115,6 +134,9 @@ export default function Booking() {
       });
       setBookedAppointment(r.data);
       setSuccess(true);
+      // Já leva o cliente para enviar a confirmação no WhatsApp — muitos paravam na tela
+      // de sucesso sem enviar. A tela de sucesso fica como reserva, com o botão.
+      if (whatsapp) window.location.href = whatsappUrl(whatsapp, confirmationMsg(r.data));
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao agendar. Tente novamente.');
     } finally { setLoading(false); }
@@ -129,19 +151,7 @@ export default function Booking() {
   // ─── Tela de sucesso ───────────────────────────────────────────────────────
   if (success) {
     const apptServices = bookedAppointment.services?.map((as) => as.service) || [];
-    const dataFmt = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    // Emojis por código Unicode (\u{...}) de propósito: não dependem da codificação
-    // do arquivo, então a mensagem nunca sai com emoji quebrado (?? / caracteres tortos).
-    const waMsg =
-      `Olá!\u{1F44B}\n` +
-      `Acabei de confirmar meu agendamento!\u{2705}\n\n` +
-      `\u{1F464} Nome: ${bookedAppointment.clientName}\n` +
-      `\u{1F4F1} Telefone: ${bookedAppointment.clientPhone}\n` +
-      `\u{2702}\u{FE0F} Serviço: ${apptServices.map((s) => s.name).join(' + ') || '-'}\n` +
-      `\u{1F4B0} Valor: ${fmtCurrency(bookedAppointment.price)}\n` +
-      `\u{1F4C5} Data: ${dataFmt}\n` +
-      `\u{1F550} Horário: ${selectedTime}`;
-    const waUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(waMsg)}` : null;
+    const waUrl = whatsapp ? whatsappUrl(whatsapp, confirmationMsg(bookedAppointment)) : null;
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-6">
         <div className="w-full max-w-md">
@@ -172,7 +182,7 @@ export default function Booking() {
           </div>
           {waUrl && (
             <>
-              <p className="text-[#555] text-xs text-center mb-2">Toque abaixo para confirmar com a barbearia 👇</p>
+              <p className="text-[#555] text-xs text-center mb-2">Se o WhatsApp não abriu, toque abaixo para confirmar com a barbearia 👇</p>
               <a
                 href={waUrl}
                 target="_blank"
@@ -184,7 +194,8 @@ export default function Booking() {
               </a>
             </>
           )}
-          <button onClick={reset} className={`w-full py-3 text-sm rounded-xl transition-all ${waUrl ? 'bg-[#111] border border-[#1E1E1E] text-[#888] hover:text-white' : 'btn-primary'}`}>Fazer outro agendamento</button>
+          {/* Sem WhatsApp configurado não há próximo passo — mantém a saída da tela */}
+          {!waUrl && <button onClick={reset} className="btn-primary w-full py-3 text-sm rounded-xl transition-all">Fazer outro agendamento</button>}
         </div>
       </div>
     );
@@ -205,7 +216,7 @@ export default function Booking() {
           <p className="text-[#666] text-sm mb-6">A agenda da semana ainda não foi aberta. Assim que o Ryann liberar, você poderá marcar seu horário por aqui.</p>
           {whatsapp && (
             <a
-              href={`https://wa.me/${whatsapp}`}
+              href={whatsappUrl(whatsapp)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors"
@@ -259,7 +270,7 @@ export default function Booking() {
                       </div>
                       <div>
                         <p className={`text-sm font-medium transition-colors ${selected ? 'text-blue-300' : 'text-white'}`}>{s.name}</p>
-                        <p className="text-[#444] text-xs mt-0.5">{s.duration} min · {s.description}</p>
+                        <p className="text-[#444] text-xs mt-0.5">{s.duration} min</p>
                       </div>
                     </div>
                     <p className={`font-bold text-sm ml-4 shrink-0 ${selected ? 'text-blue-400' : 'text-blue-500'}`}>{fmtCurrency(s.price)}</p>

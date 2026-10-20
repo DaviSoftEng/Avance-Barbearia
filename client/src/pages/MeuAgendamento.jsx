@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { lookupAppointment, getBookingSettings } from '../services/api';
 import { maskPhone, isValidBRPhone } from '../utils/phone';
+import { whatsappUrl } from '../utils/whatsapp';
 
 const STATUS = {
   confirmed: { label: 'Confirmado', color: 'text-blue-400' },
@@ -36,7 +37,7 @@ export default function MeuAgendamento() {
       `*Nome:* ${a.clientName}\n` +
       `*Data:* ${new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR')}\n` +
       `*Horário:* ${a.time}`;
-    return `https://wa.me/${whatsapp}?text=${encodeURIComponent(msg)}`;
+    return whatsappUrl(whatsapp, msg);
   };
 
   const handleSearch = async (e) => {
