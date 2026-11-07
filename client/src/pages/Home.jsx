@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getServices, getBusinessHours, mediaUrl } from '../services/api';
 import { useInView } from '../hooks/useInView';
@@ -531,21 +531,126 @@ function ServiceCard({ s, onOpen }) {
 }
 
 /* ─── Carrossel contínuo (esteira girando em loop) ───────────────────────── */
+// Gira sozinho e aceita arrastar para os dois lados (dedo ou mouse), com embalo.
+// Antes era só CSS com pausa no :hover — no iPhone o toque "grudava" o hover e a
+// esteira ficava parada. Agora a pausa por hover vale só para mouse.
 function ServicesCarousel({ services, onOpen }) {
-  // Duplica a lista para o loop ser perfeito (translada exatamente 50%)
+  // Duplica a lista para o loop ser perfeito (volta ao início após metade da pista)
   const loop = [...services, ...services];
   // Velocidade constante: ~6s por card
   const duration = Math.max(services.length * 6, 18);
 
+  const trackRef = useRef(null);
+  const st = useRef({
+    x: 0, half: 0, vel: 0, resumeAt: 0, hover: false,
+    drag: false, axis: null, moved: false, startX: 0, startY: 0, lastX: 0, lastT: 0,
+  });
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return undefined;
+    const s = st.current;
+    const measure = () => { s.half = el.scrollWidth / 2; };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+
+    let raf;
+    let prev = performance.now();
+    const tick = (now) => {
+      const dt = Math.min((now - prev) / 1000, 0.05);
+      prev = now;
+      if (s.half > 0) {
+        if (!s.drag) {
+          if (Math.abs(s.vel) > 5) {
+            // Embalo depois de soltar o dedo, desacelerando
+            s.x += s.vel * dt;
+            s.vel *= Math.pow(0.04, dt);
+          } else if (!s.hover && now >= s.resumeAt) {
+            s.x -= (s.half / duration) * dt;
+          }
+        }
+        // Mantém x em (-half, 0] para o loop infinito nos dois sentidos
+        s.x %= s.half;
+        if (s.x > 0) s.x -= s.half;
+        el.style.transform = `translate3d(${s.x}px,0,0)`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [duration, services.length]);
+
+  const onPointerDown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const s = st.current;
+    Object.assign(s, {
+      drag: true, axis: null, moved: false, vel: 0,
+      startX: e.clientX, startY: e.clientY, lastX: e.clientX, lastT: performance.now(),
+    });
+  };
+
+  const onPointerMove = (e) => {
+    const s = st.current;
+    if (!s.drag) return;
+    if (!s.axis) {
+      const dx = e.clientX - s.startX;
+      const dy = e.clientY - s.startY;
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      // Gesto vertical fica com a rolagem da página
+      s.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (s.axis === 'x') {
+        s.moved = true;
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      }
+    }
+    if (s.axis !== 'x') return;
+    const now = performance.now();
+    const step = e.clientX - s.lastX;
+    s.x += step;
+    const dtm = now - s.lastT;
+    if (dtm > 0) s.vel = 0.7 * s.vel + 0.3 * (step / dtm) * 1000;
+    s.lastX = e.clientX;
+    s.lastT = now;
+  };
+
+  const onPointerEnd = () => {
+    const s = st.current;
+    if (!s.drag) return;
+    s.drag = false;
+    if (s.axis !== 'x' || performance.now() - s.lastT > 80) s.vel = 0;
+    s.vel = Math.max(-3000, Math.min(3000, s.vel));
+    s.resumeAt = performance.now() + 1500; // volta a girar sozinho logo depois
+  };
+
+  // Arrastar não deve abrir o serviço que estava embaixo do dedo
+  const onClickCapture = (e) => {
+    const s = st.current;
+    if (s.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      s.moved = false;
+    }
+  };
+
   return (
-    <div className="group relative overflow-hidden">
+    <div className="relative overflow-hidden">
       {/* Fades nas bordas para o efeito de esteira (menores no celular) */}
       <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 sm:w-16 z-10 bg-gradient-to-r from-[#0A0A0A] to-transparent" />
       <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 sm:w-16 z-10 bg-gradient-to-l from-[#0A0A0A] to-transparent" />
 
       <div
-        className="flex w-max animate-marquee group-hover:[animation-play-state:paused]"
-        style={{ animationDuration: `${duration}s` }}
+        ref={trackRef}
+        className="flex w-max select-none cursor-grab active:cursor-grabbing will-change-transform"
+        style={{ touchAction: 'pan-y' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') st.current.hover = true; }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') st.current.hover = false; }}
+        onClickCapture={onClickCapture}
+        onDragStart={(e) => e.preventDefault()}
       >
         {loop.map((s, i) => (
           <div key={`${s.id}-${i}`} className="shrink-0 w-[170px] sm:w-[280px] lg:w-[260px] mr-3 sm:mr-4">
@@ -555,8 +660,8 @@ function ServicesCarousel({ services, onOpen }) {
       </div>
 
       <p className="text-center text-[#333] text-xs mt-4">
-        <span className="sm:hidden">Toque em um serviço para ver detalhes</span>
-        <span className="hidden sm:inline">Passe o mouse para pausar · toque em um serviço para ver detalhes</span>
+        <span className="sm:hidden">Arraste para os lados · toque em um serviço para ver detalhes</span>
+        <span className="hidden sm:inline">Passe o mouse para pausar · arraste para os lados · clique em um serviço para ver detalhes</span>
       </p>
     </div>
   );
